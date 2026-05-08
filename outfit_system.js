@@ -1,11 +1,13 @@
 // ===========================================================
-// 👕 outfit_system.js — Layered Dress-Up + Underwear System
+// 👕 outfit_system.js — JSON Layered Dress-Up + Underwear System
 // Branch: 3
 // Purpose: Toy-style separate underwear/clothes + color only
 // No wind system. No toy system.
 // ===========================================================
 (() => {
   const DEFAULT_COLOR = "Original";
+  const CATALOG_FILE = "dressup_catalog.json";
+
   const COLOR_MAP = {
     Original: null,
     Red: "#ff3b30",
@@ -18,35 +20,24 @@
     Pink: "#ff2d55",
   };
 
-  // Asset naming convention:
-  // Pet 1:
-  //   topunderwear1_stand.png, bottomunderwear1_stand.png, boxers1_stand.png
-  //   top1_stand.png, pants1_stand.png, skirt1_stand.png, shoes1_stand.png, hat1_stand.png
-  // Pet 2:
-  //   topunderwear1_2_stand.png, bottomunderwear1_2_stand.png, boxers1_2_stand.png
-  //   top1_2_stand.png, pants1_2_stand.png, skirt1_2_stand.png, shoes1_2_stand.png, hat1_2_stand.png
-  // Optional states:
-  //   _fall.png, _fly0.png, _fly1.png, _sleep.png
+  // JSON format lives in dressup_catalog.json.
+  // Each item uses a prefix. The renderer loads:
+  //   {prefix}_stand.png
+  //   {prefix}_fall.png
+  //   {prefix}_fly0.png
+  //   {prefix}_fly1.png
+  //   {prefix}_sleep.png
+  // Example:
+  //   { "id": "top2", "label": "Top 2", "prefix": "top2" }
 
-  const CATEGORY_ORDER = ["topUnderwear", "bottomUnderwear", "top", "bottom", "shoes", "hat"];
-  const CATEGORY_LABELS = {
-    topUnderwear: "Top Underwear",
-    bottomUnderwear: "Bottom Underwear / Boxers",
-    top: "Top",
-    bottom: "Pants / Skirt",
-    shoes: "Shoes",
-    hat: "Hat",
-  };
-  const CATEGORY_Z = {
-    bottomUnderwear: 50,
-    topUnderwear: 60,
-    shoes: 90,
-    bottom: 110,
-    top: 120,
-    hat: 180,
-  };
-
-  const DEFAULT_ITEM_COUNT = 10;
+  const FALLBACK_CATEGORY_DEFS = [
+    { key: "topUnderwear", label: "Top Underwear", z: 60 },
+    { key: "bottomUnderwear", label: "Bottom Underwear / Boxers", z: 50 },
+    { key: "top", label: "Top", z: 120 },
+    { key: "bottom", label: "Pants / Skirt", z: 110 },
+    { key: "shoes", label: "Shoes", z: 90 },
+    { key: "hat", label: "Hat", z: 180 },
+  ];
 
   function createImg(src) {
     const img = new Image();
@@ -66,70 +57,161 @@
     };
   }
 
-  function petSuffix(petIndex) {
-    return petIndex === 1 ? "_2" : "";
-  }
-
-  function makeItem(label, prefix) {
-    return { label, set: loadLayer(prefix) };
-  }
-
-  function emptyCategory(key) {
+  function makeItemFromJson(item) {
+    const id = item.id || item.prefix;
+    const prefix = item.prefix || item.id;
+    if (!id || !prefix) return null;
     return {
-      label: CATEGORY_LABELS[key] || key,
-      z: CATEGORY_Z[key] || 100,
-      items: { 0: { label: "None", set: null } },
+      id,
+      label: item.label || id,
+      set: loadLayer(prefix),
     };
   }
 
-  function buildCatalogForPet(petIndex) {
-    const suffix = petSuffix(petIndex);
-    const catalog = {
-      topUnderwear: emptyCategory("topUnderwear"),
-      bottomUnderwear: emptyCategory("bottomUnderwear"),
-      top: emptyCategory("top"),
-      bottom: emptyCategory("bottom"),
-      shoes: emptyCategory("shoes"),
-      hat: emptyCategory("hat"),
+  function emptyCategory(def) {
+    return {
+      label: def.label || def.key,
+      z: Number.isFinite(Number(def.z)) ? Number(def.z) : 100,
+      items: { 0: { id: 0, label: "None", set: null } },
     };
+  }
 
-    for (let i = 1; i <= DEFAULT_ITEM_COUNT; i++) {
-      catalog.topUnderwear.items[i] = makeItem(`Top Underwear ${i}`, `topunderwear${i}${suffix}`);
-      catalog.bottomUnderwear.items[`bottomunderwear${i}`] = makeItem(`Bottom Underwear ${i}`, `bottomunderwear${i}${suffix}`);
-      catalog.bottomUnderwear.items[`boxers${i}`] = makeItem(`Boxers ${i}`, `boxers${i}${suffix}`);
+  function buildFallbackCatalog() {
+    const catalog = { 0: {}, 1: {} };
+    const suffixes = ["", "_2"];
 
-      catalog.top.items[i] = makeItem(`Top ${i}`, `top${i}${suffix}`);
-      catalog.bottom.items[`pants${i}`] = makeItem(`Pants ${i}`, `pants${i}${suffix}`);
-      catalog.bottom.items[`skirt${i}`] = makeItem(`Skirt ${i}`, `skirt${i}${suffix}`);
-      catalog.shoes.items[i] = makeItem(`Shoes ${i}`, `shoes${i}${suffix}`);
-      catalog.hat.items[i] = makeItem(`Hat ${i}`, `hat${i}${suffix}`);
+    for (let petIndex = 0; petIndex <= 1; petIndex++) {
+      const suffix = suffixes[petIndex];
+      FALLBACK_CATEGORY_DEFS.forEach(def => { catalog[petIndex][def.key] = emptyCategory(def); });
+
+      catalog[petIndex].topUnderwear.items[`topunderwear1${suffix}`] = {
+        id: `topunderwear1${suffix}`,
+        label: "Top Underwear 1",
+        set: loadLayer(`topunderwear1${suffix}`),
+      };
+      catalog[petIndex].bottomUnderwear.items[`bottomunderwear1${suffix}`] = {
+        id: `bottomunderwear1${suffix}`,
+        label: "Bottom Underwear 1",
+        set: loadLayer(`bottomunderwear1${suffix}`),
+      };
+      catalog[petIndex].bottomUnderwear.items[`boxers1${suffix}`] = {
+        id: `boxers1${suffix}`,
+        label: "Boxers 1",
+        set: loadLayer(`boxers1${suffix}`),
+      };
+      catalog[petIndex].top.items[`top1${suffix}`] = {
+        id: `top1${suffix}`,
+        label: "Top 1",
+        set: loadLayer(`top1${suffix}`),
+      };
+      catalog[petIndex].bottom.items[`pants1${suffix}`] = {
+        id: `pants1${suffix}`,
+        label: "Pants 1",
+        set: loadLayer(`pants1${suffix}`),
+      };
+      catalog[petIndex].bottom.items[`skirt1${suffix}`] = {
+        id: `skirt1${suffix}`,
+        label: "Skirt 1",
+        set: loadLayer(`skirt1${suffix}`),
+      };
+      catalog[petIndex].shoes.items[`shoes1${suffix}`] = {
+        id: `shoes1${suffix}`,
+        label: "Shoes 1",
+        set: loadLayer(`shoes1${suffix}`),
+      };
+      catalog[petIndex].hat.items[`hat1${suffix}`] = {
+        id: `hat1${suffix}`,
+        label: "Hat 1",
+        set: loadLayer(`hat1${suffix}`),
+      };
     }
 
-    return catalog;
+    return {
+      categoryDefs: FALLBACK_CATEGORY_DEFS,
+      catalog,
+      defaults: {
+        0: { topUnderwear: "topunderwear1", bottomUnderwear: "bottomunderwear1", top: 0, bottom: 0, shoes: 0, hat: 0 },
+        1: { topUnderwear: "topunderwear1_2", bottomUnderwear: "bottomunderwear1_2", top: 0, bottom: 0, shoes: 0, hat: 0 },
+      },
+    };
   }
 
-  const builtInCatalog = {
-    0: buildCatalogForPet(0),
-    1: buildCatalogForPet(1),
-  };
+  function buildCatalogFromJson(data) {
+    const categoryDefs = Array.isArray(data.categories) && data.categories.length
+      ? data.categories
+      : FALLBACK_CATEGORY_DEFS;
 
-  window.dressUpCatalog = window.dressUpCatalog || builtInCatalog;
+    const catalog = { 0: {}, 1: {} };
+    [0, 1].forEach(petIndex => {
+      categoryDefs.forEach(def => {
+        catalog[petIndex][def.key] = emptyCategory(def);
+      });
+
+      const petData = data.pets?.[petIndex] || data.pets?.[String(petIndex)] || {};
+      categoryDefs.forEach(def => {
+        const items = Array.isArray(petData[def.key]) ? petData[def.key] : [];
+        items.forEach(raw => {
+          const item = makeItemFromJson(raw);
+          if (item) catalog[petIndex][def.key].items[item.id] = item;
+        });
+      });
+    });
+
+    return {
+      categoryDefs,
+      catalog,
+      defaults: data.defaults || {},
+    };
+  }
+
+  let config = buildFallbackCatalog();
+  let CATEGORY_DEFS = config.categoryDefs;
+  window.dressUpCatalog = config.catalog;
 
   if (typeof window.activePetIndex !== "number") window.activePetIndex = 0;
 
-  window.selectedClothes = window.selectedClothes || [
-    { topUnderwear: 1, bottomUnderwear: "bottomunderwear1", top: 0, bottom: 0, shoes: 0, hat: 0 },
-    { topUnderwear: 1, bottomUnderwear: "bottomunderwear1", top: 0, bottom: 0, shoes: 0, hat: 0 },
-  ];
+  function makeDefaultState(defaults) {
+    return [0, 1].map(i => {
+      const fromJson = defaults?.[i] || defaults?.[String(i)] || {};
+      const out = {};
+      CATEGORY_DEFS.forEach(def => { out[def.key] = fromJson[def.key] ?? 0; });
+      return out;
+    });
+  }
 
-  window.clothingColors = window.clothingColors || [
-    { topUnderwear: DEFAULT_COLOR, bottomUnderwear: DEFAULT_COLOR, top: DEFAULT_COLOR, bottom: DEFAULT_COLOR, shoes: DEFAULT_COLOR, hat: DEFAULT_COLOR },
-    { topUnderwear: DEFAULT_COLOR, bottomUnderwear: DEFAULT_COLOR, top: DEFAULT_COLOR, bottom: DEFAULT_COLOR, shoes: DEFAULT_COLOR, hat: DEFAULT_COLOR },
-  ];
+  function makeDefaultColors() {
+    return [0, 1].map(() => {
+      const out = {};
+      CATEGORY_DEFS.forEach(def => { out[def.key] = DEFAULT_COLOR; });
+      return out;
+    });
+  }
 
-  // Old full-outfit fields are kept only for compatibility with existing modes.
+  window.selectedClothes = window.selectedClothes || makeDefaultState(config.defaults);
+  window.clothingColors = window.clothingColors || makeDefaultColors();
+
   window.currentOutfits = [0, 0];
   window.currentOutfit = 0;
+
+  function normalizeStateAfterCatalogLoad() {
+    const defaultState = makeDefaultState(config.defaults);
+    const defaultColors = makeDefaultColors();
+
+    [0, 1].forEach(i => {
+      if (!window.selectedClothes[i]) window.selectedClothes[i] = {};
+      if (!window.clothingColors[i]) window.clothingColors[i] = {};
+
+      CATEGORY_DEFS.forEach(def => {
+        const cat = def.key;
+        if (typeof window.selectedClothes[i][cat] === "undefined") {
+          window.selectedClothes[i][cat] = defaultState[i][cat] ?? 0;
+        }
+        if (typeof window.clothingColors[i][cat] === "undefined") {
+          window.clothingColors[i][cat] = defaultColors[i][cat] || DEFAULT_COLOR;
+        }
+      });
+    });
+  }
 
   function activePet() {
     const n = Number(window.activePetIndex);
@@ -142,7 +224,7 @@
 
   function getCategoryKeys(petIndex) {
     const catalog = getCatalog(petIndex);
-    return CATEGORY_ORDER.filter(cat => catalog[cat]);
+    return CATEGORY_DEFS.map(def => def.key).filter(cat => catalog[cat]);
   }
 
   function getItem(catData, id) {
@@ -178,18 +260,13 @@
     return true;
   }
 
-  // ---------- color tint ----------
   const tintCache = new Map();
 
   function hexToRgb(hex) {
     if (!hex) return null;
     const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     if (!m) return null;
-    return {
-      r: parseInt(m[1], 16),
-      g: parseInt(m[2], 16),
-      b: parseInt(m[3], 16),
-    };
+    return { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) };
   }
 
   function tintedImage(img, hex) {
@@ -231,7 +308,6 @@
     return out;
   }
 
-  // ---------- UI ----------
   let selectedCategory = "topUnderwear";
 
   function makeButton(text, className) {
@@ -374,7 +450,7 @@
     panel.appendChild(colorRow);
 
     const note = document.createElement("div");
-    note.textContent = "Use None to remove underwear or clothing. Missing image files are skipped automatically.";
+    note.textContent = "Edit dressup_catalog.json to add more items. Use None to remove underwear or clothing.";
     note.style.cssText = "font-size:11px;opacity:0.65;margin-top:8px;";
     panel.appendChild(note);
 
@@ -387,7 +463,6 @@
     renderPanel();
   };
 
-  // ---------- canvas draw hook ----------
   window.drawOutfitOverlay = function (ctx, state, x, y, w, h, petIndexParam) {
     if (window._modeName === "shower") return false;
 
@@ -419,7 +494,6 @@
     return drew;
   };
 
-  // ---------- shower compatibility ----------
   window.enterShowerClothesRules = function () {
     if (!Array.isArray(window._prevDressUpBeforeShower)) {
       window._prevDressUpBeforeShower = window.selectedClothes.map(p => ({ ...p }));
@@ -454,6 +528,30 @@
     updateButtonLabel();
   };
 
+  async function loadJsonCatalog() {
+    try {
+      const res = await fetch(`${CATALOG_FILE}?v=${Date.now()}`);
+      if (!res.ok) throw new Error(`Could not load ${CATALOG_FILE}`);
+      const data = await res.json();
+      config = buildCatalogFromJson(data);
+      CATEGORY_DEFS = config.categoryDefs;
+      window.dressUpCatalog = config.catalog;
+      normalizeStateAfterCatalogLoad();
+      if (!getCategoryKeys(activePet()).includes(selectedCategory)) {
+        selectedCategory = getCategoryKeys(activePet())[0] || "topUnderwear";
+      }
+      renderPanel();
+      updateButtonLabel();
+    } catch (err) {
+      console.warn("Using fallback dress-up catalog:", err);
+      normalizeStateAfterCatalogLoad();
+      renderPanel();
+      updateButtonLabel();
+    }
+  }
+
+  normalizeStateAfterCatalogLoad();
   renderPanel();
   updateButtonLabel();
+  loadJsonCatalog();
 })();

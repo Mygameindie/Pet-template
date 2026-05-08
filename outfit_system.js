@@ -1,12 +1,13 @@
 // ===========================================================
-// 👕 outfit_system.js — JSON Layered Dress-Up + Underwear System
+// 👕 outfit_system.js — Split-JSON Layered Dress-Up + Underwear
 // Branch: 3
 // Purpose: Toy-style separate underwear/clothes + color only
 // No wind system. No toy system.
 // ===========================================================
 (() => {
   const DEFAULT_COLOR = "Original";
-  const CATALOG_FILE = "dressup_catalog.json";
+  const CATEGORY_INDEX_FILE = "dressup_categories.json";
+  const DEFAULTS_FILE = "dressup_defaults.json";
 
   const COLOR_MAP = {
     Original: null,
@@ -20,23 +21,27 @@
     Pink: "#ff2d55",
   };
 
-  // JSON format lives in dressup_catalog.json.
-  // Each item uses a prefix. The renderer loads:
-  //   {prefix}_stand.png
-  //   {prefix}_fall.png
-  //   {prefix}_fly0.png
-  //   {prefix}_fly1.png
-  //   {prefix}_sleep.png
-  // Example:
-  //   { "id": "top2", "label": "Top 2", "prefix": "top2" }
+  // Split JSON structure:
+  // - dressup_categories.json controls category order, labels, z-index, and each category JSON filename.
+  // - dressup_defaults.json controls the default selected item per pet.
+  // - dressup_top.json, dressup_bottom.json, etc. contain only that category's items.
+  //
+  // Category JSON format:
+  // {
+  //   "0": [{ "id": "top1", "label": "Top 1", "prefix": "top1" }],
+  //   "1": [{ "id": "top1_2", "label": "Top 1", "prefix": "top1_2" }]
+  // }
+  //
+  // Each item prefix loads:
+  //   {prefix}_stand.png, {prefix}_fall.png, {prefix}_fly0.png, {prefix}_fly1.png, {prefix}_sleep.png
 
   const FALLBACK_CATEGORY_DEFS = [
-    { key: "topUnderwear", label: "Top Underwear", z: 60 },
-    { key: "bottomUnderwear", label: "Bottom Underwear / Boxers", z: 50 },
-    { key: "top", label: "Top", z: 120 },
-    { key: "bottom", label: "Pants / Skirt", z: 110 },
-    { key: "shoes", label: "Shoes", z: 90 },
-    { key: "hat", label: "Hat", z: 180 },
+    { key: "topUnderwear", label: "Top Underwear", z: 60, file: "dressup_top_underwear.json" },
+    { key: "bottomUnderwear", label: "Bottom Underwear / Boxers", z: 50, file: "dressup_bottom_underwear.json" },
+    { key: "top", label: "Top", z: 120, file: "dressup_top.json" },
+    { key: "bottom", label: "Pants / Skirt", z: 110, file: "dressup_bottom.json" },
+    { key: "shoes", label: "Shoes", z: 90, file: "dressup_shoes.json" },
+    { key: "hat", label: "Hat", z: 180, file: "dressup_hat.json" },
   ];
 
   function createImg(src) {
@@ -61,17 +66,14 @@
     const id = item.id || item.prefix;
     const prefix = item.prefix || item.id;
     if (!id || !prefix) return null;
-    return {
-      id,
-      label: item.label || id,
-      set: loadLayer(prefix),
-    };
+    return { id, label: item.label || id, set: loadLayer(prefix) };
   }
 
   function emptyCategory(def) {
     return {
       label: def.label || def.key,
       z: Number.isFinite(Number(def.z)) ? Number(def.z) : 100,
+      file: def.file || null,
       items: { 0: { id: 0, label: "None", set: null } },
     };
   }
@@ -84,46 +86,14 @@
       const suffix = suffixes[petIndex];
       FALLBACK_CATEGORY_DEFS.forEach(def => { catalog[petIndex][def.key] = emptyCategory(def); });
 
-      catalog[petIndex].topUnderwear.items[`topunderwear1${suffix}`] = {
-        id: `topunderwear1${suffix}`,
-        label: "Top Underwear 1",
-        set: loadLayer(`topunderwear1${suffix}`),
-      };
-      catalog[petIndex].bottomUnderwear.items[`bottomunderwear1${suffix}`] = {
-        id: `bottomunderwear1${suffix}`,
-        label: "Bottom Underwear 1",
-        set: loadLayer(`bottomunderwear1${suffix}`),
-      };
-      catalog[petIndex].bottomUnderwear.items[`boxers1${suffix}`] = {
-        id: `boxers1${suffix}`,
-        label: "Boxers 1",
-        set: loadLayer(`boxers1${suffix}`),
-      };
-      catalog[petIndex].top.items[`top1${suffix}`] = {
-        id: `top1${suffix}`,
-        label: "Top 1",
-        set: loadLayer(`top1${suffix}`),
-      };
-      catalog[petIndex].bottom.items[`pants1${suffix}`] = {
-        id: `pants1${suffix}`,
-        label: "Pants 1",
-        set: loadLayer(`pants1${suffix}`),
-      };
-      catalog[petIndex].bottom.items[`skirt1${suffix}`] = {
-        id: `skirt1${suffix}`,
-        label: "Skirt 1",
-        set: loadLayer(`skirt1${suffix}`),
-      };
-      catalog[petIndex].shoes.items[`shoes1${suffix}`] = {
-        id: `shoes1${suffix}`,
-        label: "Shoes 1",
-        set: loadLayer(`shoes1${suffix}`),
-      };
-      catalog[petIndex].hat.items[`hat1${suffix}`] = {
-        id: `hat1${suffix}`,
-        label: "Hat 1",
-        set: loadLayer(`hat1${suffix}`),
-      };
+      catalog[petIndex].topUnderwear.items[`topunderwear1${suffix}`] = { id: `topunderwear1${suffix}`, label: "Top Underwear 1", set: loadLayer(`topunderwear1${suffix}`) };
+      catalog[petIndex].bottomUnderwear.items[`bottomunderwear1${suffix}`] = { id: `bottomunderwear1${suffix}`, label: "Bottom Underwear 1", set: loadLayer(`bottomunderwear1${suffix}`) };
+      catalog[petIndex].bottomUnderwear.items[`boxers1${suffix}`] = { id: `boxers1${suffix}`, label: "Boxers 1", set: loadLayer(`boxers1${suffix}`) };
+      catalog[petIndex].top.items[`top1${suffix}`] = { id: `top1${suffix}`, label: "Top 1", set: loadLayer(`top1${suffix}`) };
+      catalog[petIndex].bottom.items[`pants1${suffix}`] = { id: `pants1${suffix}`, label: "Pants 1", set: loadLayer(`pants1${suffix}`) };
+      catalog[petIndex].bottom.items[`skirt1${suffix}`] = { id: `skirt1${suffix}`, label: "Skirt 1", set: loadLayer(`skirt1${suffix}`) };
+      catalog[petIndex].shoes.items[`shoes1${suffix}`] = { id: `shoes1${suffix}`, label: "Shoes 1", set: loadLayer(`shoes1${suffix}`) };
+      catalog[petIndex].hat.items[`hat1${suffix}`] = { id: `hat1${suffix}`, label: "Hat 1", set: loadLayer(`hat1${suffix}`) };
     }
 
     return {
@@ -136,32 +106,50 @@
     };
   }
 
-  function buildCatalogFromJson(data) {
-    const categoryDefs = Array.isArray(data.categories) && data.categories.length
-      ? data.categories
-      : FALLBACK_CATEGORY_DEFS;
+  async function fetchJson(path, fallback) {
+    try {
+      const res = await fetch(`${path}?v=${Date.now()}`);
+      if (!res.ok) throw new Error(path);
+      return await res.json();
+    } catch (err) {
+      console.warn(`Could not load ${path}; using fallback.`, err);
+      return fallback;
+    }
+  }
 
+  function buildCatalogShell(categoryDefs) {
     const catalog = { 0: {}, 1: {} };
     [0, 1].forEach(petIndex => {
-      categoryDefs.forEach(def => {
-        catalog[petIndex][def.key] = emptyCategory(def);
-      });
+      categoryDefs.forEach(def => { catalog[petIndex][def.key] = emptyCategory(def); });
+    });
+    return catalog;
+  }
 
-      const petData = data.pets?.[petIndex] || data.pets?.[String(petIndex)] || {};
-      categoryDefs.forEach(def => {
-        const items = Array.isArray(petData[def.key]) ? petData[def.key] : [];
-        items.forEach(raw => {
+  async function buildCatalogFromSplitJson() {
+    const categoryDefsRaw = await fetchJson(CATEGORY_INDEX_FILE, FALLBACK_CATEGORY_DEFS);
+    const categoryDefs = Array.isArray(categoryDefsRaw) && categoryDefsRaw.length
+      ? categoryDefsRaw
+      : FALLBACK_CATEGORY_DEFS;
+
+    const defaults = await fetchJson(DEFAULTS_FILE, {});
+    const catalog = buildCatalogShell(categoryDefs);
+
+    await Promise.all(categoryDefs.map(async def => {
+      if (!def.file) return;
+      const data = await fetchJson(def.file, {});
+
+      [0, 1].forEach(petIndex => {
+        const list = data?.[petIndex] || data?.[String(petIndex)] || [];
+        if (!Array.isArray(list)) return;
+
+        list.forEach(raw => {
           const item = makeItemFromJson(raw);
           if (item) catalog[petIndex][def.key].items[item.id] = item;
         });
       });
-    });
+    }));
 
-    return {
-      categoryDefs,
-      catalog,
-      defaults: data.defaults || {},
-    };
+    return { categoryDefs, catalog, defaults };
   }
 
   let config = buildFallbackCatalog();
@@ -189,7 +177,6 @@
 
   window.selectedClothes = window.selectedClothes || makeDefaultState(config.defaults);
   window.clothingColors = window.clothingColors || makeDefaultColors();
-
   window.currentOutfits = [0, 0];
   window.currentOutfit = 0;
 
@@ -203,12 +190,8 @@
 
       CATEGORY_DEFS.forEach(def => {
         const cat = def.key;
-        if (typeof window.selectedClothes[i][cat] === "undefined") {
-          window.selectedClothes[i][cat] = defaultState[i][cat] ?? 0;
-        }
-        if (typeof window.clothingColors[i][cat] === "undefined") {
-          window.clothingColors[i][cat] = defaultColors[i][cat] || DEFAULT_COLOR;
-        }
+        if (typeof window.selectedClothes[i][cat] === "undefined") window.selectedClothes[i][cat] = defaultState[i][cat] ?? 0;
+        if (typeof window.clothingColors[i][cat] === "undefined") window.clothingColors[i][cat] = defaultColors[i][cat] || DEFAULT_COLOR;
       });
     });
   }
@@ -271,10 +254,8 @@
 
   function tintedImage(img, hex) {
     if (!hex || !img || img._failed || !img.complete || img.naturalWidth === 0) return img;
-
     const key = `${img.src}|${hex}`;
     if (tintCache.has(key)) return tintCache.get(key);
-
     const rgb = hexToRgb(hex);
     if (!rgb) return img;
 
@@ -450,7 +431,7 @@
     panel.appendChild(colorRow);
 
     const note = document.createElement("div");
-    note.textContent = "Edit dressup_catalog.json to add more items. Use None to remove underwear or clothing.";
+    note.textContent = "Add items in each dressup_*.json file. Use None to remove underwear or clothing.";
     note.style.cssText = "font-size:11px;opacity:0.65;margin-top:8px;";
     panel.appendChild(note);
 
@@ -528,12 +509,9 @@
     updateButtonLabel();
   };
 
-  async function loadJsonCatalog() {
+  async function loadSplitJsonCatalog() {
     try {
-      const res = await fetch(`${CATALOG_FILE}?v=${Date.now()}`);
-      if (!res.ok) throw new Error(`Could not load ${CATALOG_FILE}`);
-      const data = await res.json();
-      config = buildCatalogFromJson(data);
+      config = await buildCatalogFromSplitJson();
       CATEGORY_DEFS = config.categoryDefs;
       window.dressUpCatalog = config.catalog;
       normalizeStateAfterCatalogLoad();
@@ -553,5 +531,5 @@
   normalizeStateAfterCatalogLoad();
   renderPanel();
   updateButtonLabel();
-  loadJsonCatalog();
+  loadSplitJsonCatalog();
 })();

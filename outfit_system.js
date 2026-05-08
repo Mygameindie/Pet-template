@@ -1,8 +1,23 @@
 // ===========================================================
-// 👕 outfit_system.js (GLOBAL) — load once, used by every mode
+// 👕 outfit_system.js — Simple Dress-Up System
+// Branch: dress-up-2
+// Purpose: Toy-style clothes + color only, no wind, no toy system
 // ===========================================================
 (() => {
   // ---------- helpers ----------
+  const DEFAULT_COLOR = "Original";
+  const COLOR_MAP = {
+    Original: null,
+    Red: "#ff3b30",
+    Orange: "#ff9500",
+    Yellow: "#ffcc00",
+    Green: "#34c759",
+    Cyan: "#32ade6",
+    Blue: "#007aff",
+    Purple: "#af52de",
+    Pink: "#ff2d55",
+  };
+
   function createImg(src) {
     const img = new Image();
     img._failed = false;
@@ -11,215 +26,411 @@
     return img;
   }
 
-  function loadOutfit(prefix) {
+  function loadClothingSet(prefix) {
     return {
       stand: createImg(`${prefix}_stand.png`),
       fall: createImg(`${prefix}_fall.png`),
       fly0: createImg(`${prefix}_fly0.png`),
       fly1: createImg(`${prefix}_fly1.png`),
-      // ✅ add sleep state support (optional asset)
       sleep: createImg(`${prefix}_sleep.png`),
     };
   }
 
-  // ---------- global state ----------
-  // Multi-pet support:
-  // - window.currentOutfits: per-pet outfit id array
-  // - window.activePetIndex: which pet the clothes button controls
-  // Back-compat:
-  // - window.currentOutfit still exists and mirrors pet 0
-  const DEFAULT_OUTFIT = 1;
-
-  if (!Array.isArray(window.currentOutfits)) {
-    // If an older build stored single outfit in window.currentOutfit, carry it over.
-    const carry = (typeof window.currentOutfit === "number") ? window.currentOutfit : DEFAULT_OUTFIT;
-    window.currentOutfits = [carry, carry];
+  function ensureArray(value, fallback) {
+    return Array.isArray(value) ? value : fallback;
   }
 
-  if (typeof window.activePetIndex !== "number") window.activePetIndex = 0;
-
-  // Keep legacy field in sync for pet 0
-  window.currentOutfit = (typeof window.currentOutfits[0] === "number") ? window.currentOutfits[0] : DEFAULT_OUTFIT;
-
-  // expose outfits globally (so every mode can use it)
-  // Per-pet outfit sets:
-  // - Pet 0 (base.png / base1) uses prefixes like: outfit1_*.png
-  // - Pet 1 (base2.png / base2) uses prefixes like: outfit1_2_*.png
-  // Structure: window.outfits[petIndex][outfitId] = loadOutfit(prefix)
-  window.outfits = window.outfits || {
-    0: {
-      1: loadOutfit("outfit1"),
-      2: loadOutfit("outfit2"),
-      3: loadOutfit("outfit3"),
-      4: loadOutfit("outfit4"),
-    },
-    1: {
-      1: loadOutfit("outfit1_2"),
-      2: loadOutfit("outfit2_2"),
-      3: loadOutfit("outfit3_2"),
-      4: loadOutfit("outfit4_2"),
-    },
-  };
-
-  // ---------- button (idempotent; prevents stacking) ----------
-  let clothesBtn = window.clothesBtn;
-  if (!clothesBtn) {
-    clothesBtn = document.createElement("button");
-    clothesBtn.id = "clothes-btn";
-    clothesBtn.innerText = "Change Clothes";
-    clothesBtn.style.position = "fixed";
-    clothesBtn.style.bottom = "calc(65px + env(safe-area-inset-bottom))";
-    clothesBtn.style.right = "10px";
-    clothesBtn.style.padding = "6px 12px";
-    clothesBtn.style.fontSize = "clamp(11px, 2.5vw, 14px)";
-    clothesBtn.style.cursor = "pointer";
-    clothesBtn.style.zIndex = "9998";
-    clothesBtn.style.borderRadius = "8px";
-    clothesBtn.style.border = "none";
-    clothesBtn.style.background = "rgba(255,255,255,0.92)";
-    clothesBtn.style.boxShadow = "0 2px 8px rgba(0,0,0,0.15)";
-    clothesBtn.style.whiteSpace = "nowrap";
-    document.body.appendChild(clothesBtn);
-
-    window.clothesBtn = clothesBtn;
+  function petIndex() {
+    const n = Number(window.activePetIndex);
+    return Number.isFinite(n) ? Math.max(0, Math.min(1, Math.floor(n))) : 0;
   }
 
-  function updateButtonLabel() {
-    const i = (typeof window.activePetIndex === "number") ? window.activePetIndex : 0;
-    const id = (Array.isArray(window.currentOutfits) && typeof window.currentOutfits[i] === "number")
-      ? window.currentOutfits[i]
-      : 0;
-    clothesBtn.innerText =
-      id === 0
-        ? `Change Clothes (Pet ${i + 1}: Base)`
-        : `Change Clothes (Pet ${i + 1}: Outfit ${id})`;
-  }
-  updateButtonLabel();
-
-
-// Returns sorted outfit IDs for a given pet, always including base (0) at the front.
-function getOutfitCycleList(petIdx) {
-  const petSets = window.outfits && window.outfits[petIdx];
-  const ids = petSets ? Object.keys(petSets).map(n => Number(n)).filter(n => Number.isFinite(n)) : [];
-  ids.sort((a, b) => a - b);
-  // Ensure base option exists in cycle
-  if (!ids.includes(0)) ids.unshift(0);
-  // De-dupe (just in case)
-  return Array.from(new Set(ids));
-}
-
-  if (!clothesBtn._outfitListenerBound) {
-    clothesBtn._outfitListenerBound = true;
-
-    clothesBtn.addEventListener("click", () => {
-      // ❌ no changing in shower
-      if (window._modeName === "shower") return;
-
-      const petIdx = (typeof window.activePetIndex === "number") ? window.activePetIndex : 0;
-      if (!Array.isArray(window.currentOutfits)) window.currentOutfits = [DEFAULT_OUTFIT, DEFAULT_OUTFIT];
-
-
-const cycle = getOutfitCycleList(petIdx);
-if (!cycle.length) {
-  window.currentOutfits[petIdx] = 0;
-} else {
-  // Move to next id in the cycle list
-  const cur = (typeof window.currentOutfits[petIdx] === "number") ? window.currentOutfits[petIdx] : 0;
-  let idx = cycle.indexOf(cur);
-  if (idx < 0) idx = 0;
-
-  // advance, skipping outfits with missing/failed stand image (common in partial asset packs)
-  for (let step = 0; step < cycle.length; step++) {
-    idx = (idx + 1) % cycle.length;
-    const nextId = cycle[idx];
-    window.currentOutfits[petIdx] = nextId;
-
-    // keep legacy mirror for pet 0
-    if (petIdx === 0) window.currentOutfit = window.currentOutfits[0];
-
-    if (nextId === 0) break; // base is always allowed
-
-    const set = window.outfits && window.outfits[petIdx] && window.outfits[petIdx][nextId];
-    const stand = set && set.stand;
-
-    // accept if not failed; may still be loading but will render once ready
-    if (stand && !stand._failed) break;
-  }
-}
-
-updateButtonLabel();
-    });
-  }
-
-  // ---------- safe draw ----------
   function safeDraw(ctx, img, x, y, w, h) {
     if (!img || img._failed || !img.complete || img.naturalWidth === 0) return false;
     ctx.drawImage(img, x, y, w, h);
     return true;
   }
 
-  // ---------- global render helper ----------
-  // Call this AFTER you draw the base image in any mode.
-  // state can be: "stand" | "fall" | "fly0" | "fly1" | "sleep"
-  // ✅ returns true if something was drawn, else false
-  // Optional petIndex param (default = activePetIndex)
-  window.drawOutfitOverlay = function (ctx, state, x, y, w, h, petIndex) {
-    if (window._modeName === "shower") return false;           // shower never shows clothes
-    const i = (typeof petIndex === "number")
-      ? petIndex
-      : ((typeof window.activePetIndex === "number") ? window.activePetIndex : 0);
-
-    // Back-compat: if currentOutfits missing, fall back to currentOutfit.
-    const id = (Array.isArray(window.currentOutfits) && typeof window.currentOutfits[i] === "number")
-      ? window.currentOutfits[i]
-      : ((typeof window.currentOutfit === "number") ? window.currentOutfit : 0);
-
-    if (id === 0) return false;                                 // base
-    const set = window.outfits && window.outfits[i] && window.outfits[i][id];
-    if (!set) return false;
-
-    // Try requested state first; if missing/failed, fall back to stand.
-    let img = set[state];
-    if (!img || img._failed || (img.complete && img.naturalWidth === 0)) img = set.stand;
-
-    return safeDraw(ctx, img, x, y, w, h);
+  // ---------- clothing database ----------
+  // Current assets follow the old outfit naming:
+  // Pet 1: outfit1_stand.png, outfit2_stand.png, etc.
+  // Pet 2: outfit1_2_stand.png, outfit2_2_stand.png, etc.
+  // Add more categories later by extending window.dressUpCatalog before this file loads,
+  // or by editing this catalog directly.
+  const builtInCatalog = {
+    0: {
+      outfit: {
+        label: "Outfit",
+        z: 100,
+        items: {
+          0: { label: "Base", set: null },
+          1: { label: "Outfit 1", set: loadClothingSet("outfit1") },
+          2: { label: "Outfit 2", set: loadClothingSet("outfit2") },
+          3: { label: "Outfit 3", set: loadClothingSet("outfit3") },
+          4: { label: "Outfit 4", set: loadClothingSet("outfit4") },
+        },
+      },
+    },
+    1: {
+      outfit: {
+        label: "Outfit",
+        z: 100,
+        items: {
+          0: { label: "Base", set: null },
+          1: { label: "Outfit 1", set: loadClothingSet("outfit1_2") },
+          2: { label: "Outfit 2", set: loadClothingSet("outfit2_2") },
+          3: { label: "Outfit 3", set: loadClothingSet("outfit3_2") },
+          4: { label: "Outfit 4", set: loadClothingSet("outfit4_2") },
+        },
+      },
+    },
   };
 
-  // ---------- helpers for shower ----------
-  window.enterShowerClothesRules = function () {
-    // ✅ remember previous outfit so we can restore
-    if (!Array.isArray(window._prevOutfitsBeforeShower)) {
-      window._prevOutfitsBeforeShower = Array.isArray(window.currentOutfits)
-        ? window.currentOutfits.slice()
-        : [window.currentOutfit || DEFAULT_OUTFIT, window.currentOutfit || DEFAULT_OUTFIT];
+  window.dressUpCatalog = window.dressUpCatalog || builtInCatalog;
+
+  // ---------- global state ----------
+  if (typeof window.activePetIndex !== "number") window.activePetIndex = 0;
+
+  // selectedClothes[petIndex][category] = itemId
+  window.selectedClothes = window.selectedClothes || [
+    { outfit: 1 },
+    { outfit: 1 },
+  ];
+
+  // clothingColors[petIndex][category] = colorName
+  window.clothingColors = window.clothingColors || [
+    { outfit: DEFAULT_COLOR },
+    { outfit: DEFAULT_COLOR },
+  ];
+
+  // Back-compat with old outfit button system.
+  window.currentOutfits = ensureArray(window.currentOutfits, [1, 1]);
+  window.currentOutfit = typeof window.currentOutfits[0] === "number" ? window.currentOutfits[0] : 1;
+
+  function syncLegacyOutfitFields() {
+    for (let i = 0; i < 2; i++) {
+      const selected = window.selectedClothes?.[i]?.outfit;
+      window.currentOutfits[i] = typeof selected === "number" ? selected : 0;
+    }
+    window.currentOutfit = window.currentOutfits[0] || 0;
+  }
+  syncLegacyOutfitFields();
+
+  // ---------- color tint cache ----------
+  const tintCache = new Map();
+
+  function hexToRgb(hex) {
+    if (!hex) return null;
+    const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (!m) return null;
+    return {
+      r: parseInt(m[1], 16),
+      g: parseInt(m[2], 16),
+      b: parseInt(m[3], 16),
+    };
+  }
+
+  function tintedImage(img, hex) {
+    if (!hex || !img || img._failed || !img.complete || img.naturalWidth === 0) return img;
+
+    const key = `${img.src}|${hex}`;
+    if (tintCache.has(key)) return tintCache.get(key);
+
+    const rgb = hexToRgb(hex);
+    if (!rgb) return img;
+
+    const cv = document.createElement("canvas");
+    cv.width = img.naturalWidth;
+    cv.height = img.naturalHeight;
+    const ctx = cv.getContext("2d", { willReadFrequently: true });
+
+    try {
+      ctx.drawImage(img, 0, 0);
+      const data = ctx.getImageData(0, 0, cv.width, cv.height);
+      const d = data.data;
+
+      for (let i = 0; i < d.length; i += 4) {
+        const a = d[i + 3];
+        if (!a) continue;
+
+        // Preserve shadows/highlights by multiplying original luminance into target color.
+        const lum = (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255;
+        const shade = Math.max(0.18, Math.min(1.25, lum * 1.35));
+        d[i]     = Math.min(255, rgb.r * shade);
+        d[i + 1] = Math.min(255, rgb.g * shade);
+        d[i + 2] = Math.min(255, rgb.b * shade);
+      }
+
+      ctx.putImageData(data, 0, 0);
+    } catch (_) {
+      return img;
     }
 
-    if (!Array.isArray(window.currentOutfits)) window.currentOutfits = [DEFAULT_OUTFIT, DEFAULT_OUTFIT];
-    window.currentOutfits[0] = 0;
-    window.currentOutfits[1] = 0;
-    window.currentOutfit = 0; // legacy mirror
-    if (window.clothesBtn) window.clothesBtn.style.display = "none";
+    const out = new Image();
+    out.src = cv.toDataURL("image/png");
+    tintCache.set(key, out);
+    return out;
+  }
+
+  // ---------- UI ----------
+  let selectedCategory = "outfit";
+
+  function makeButton(text, className) {
+    const btn = document.createElement("button");
+    btn.textContent = text;
+    if (className) btn.className = className;
+    return btn;
+  }
+
+  const panelCss = `
+    position: fixed;
+    right: 10px;
+    bottom: calc(108px + env(safe-area-inset-bottom));
+    width: min(330px, calc(100vw - 20px));
+    max-height: 48vh;
+    overflow: auto;
+    display: none;
+    z-index: 9999;
+    padding: 10px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.95);
+    box-shadow: 0 6px 24px rgba(0,0,0,0.22);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  `;
+
+  const btnCss = `
+    border: 0;
+    border-radius: 9px;
+    padding: 7px 10px;
+    margin: 3px;
+    background: rgba(0,0,0,0.08);
+    cursor: pointer;
+    font-size: 13px;
+    white-space: nowrap;
+  `;
+
+  let dressBtn = document.getElementById("dressup-btn");
+  if (!dressBtn) {
+    dressBtn = makeButton("Dress Up", "dressup-toggle");
+    dressBtn.id = "dressup-btn";
+    dressBtn.style.cssText = `
+      position: fixed;
+      right: 10px;
+      bottom: calc(65px + env(safe-area-inset-bottom));
+      z-index: 9998;
+      padding: 6px 12px;
+      font-size: clamp(11px, 2.5vw, 14px);
+      cursor: pointer;
+      border-radius: 8px;
+      border: none;
+      background: rgba(255,255,255,0.92);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      white-space: nowrap;
+    `;
+    document.body.appendChild(dressBtn);
+  }
+  window.clothesBtn = dressBtn;
+
+  let panel = document.getElementById("dressup-panel");
+  if (!panel) {
+    panel = document.createElement("div");
+    panel.id = "dressup-panel";
+    panel.style.cssText = panelCss;
+    document.body.appendChild(panel);
+  }
+
+  function getPetCatalog(i) {
+    return window.dressUpCatalog?.[i] || window.dressUpCatalog?.[0] || {};
+  }
+
+  function categoryKeys(i) {
+    return Object.keys(getPetCatalog(i)).sort((a, b) => {
+      const ca = getPetCatalog(i)[a];
+      const cb = getPetCatalog(i)[b];
+      return (ca.z || 0) - (cb.z || 0);
+    });
+  }
+
+  function selectedItemFor(i, cat) {
+    return window.selectedClothes?.[i]?.[cat] ?? 0;
+  }
+
+  function selectedColorFor(i, cat) {
+    return window.clothingColors?.[i]?.[cat] || DEFAULT_COLOR;
+  }
+
+  function setSelectedItem(i, cat, id) {
+    if (!window.selectedClothes[i]) window.selectedClothes[i] = {};
+    window.selectedClothes[i][cat] = Number(id);
+    syncLegacyOutfitFields();
+    renderPanel();
+  }
+
+  function setSelectedColor(i, cat, colorName) {
+    if (!window.clothingColors[i]) window.clothingColors[i] = {};
+    window.clothingColors[i][cat] = colorName;
+    renderPanel();
+  }
+
+  function updateButtonLabel() {
+    const i = petIndex();
+    const item = selectedItemFor(i, "outfit");
+    const color = selectedColorFor(i, "outfit");
+    dressBtn.textContent = item === 0
+      ? `Dress Up (Pet ${i + 1}: Base)`
+      : `Dress Up (Pet ${i + 1}: Outfit ${item}${color !== DEFAULT_COLOR ? ", " + color : ""})`;
+  }
+
+  function renderPanel() {
+    const i = petIndex();
+    const catalog = getPetCatalog(i);
+    const cats = categoryKeys(i);
+    if (!cats.includes(selectedCategory)) selectedCategory = cats[0] || "outfit";
+
+    panel.innerHTML = "";
+
+    const title = document.createElement("div");
+    title.style.cssText = "font-weight:700;margin-bottom:8px;display:flex;justify-content:space-between;gap:8px;align-items:center;";
+    title.innerHTML = `<span>Pet ${i + 1} Dress Up</span>`;
+    const close = makeButton("✕");
+    close.style.cssText = btnCss + "padding:4px 8px;";
+    close.onclick = () => { panel.style.display = "none"; };
+    title.appendChild(close);
+    panel.appendChild(title);
+
+    const catRow = document.createElement("div");
+    catRow.style.cssText = "display:flex;overflow-x:auto;padding-bottom:4px;margin-bottom:8px;";
+    cats.forEach(cat => {
+      const btn = makeButton(catalog[cat].label || cat);
+      btn.style.cssText = btnCss + (cat === selectedCategory ? "background:rgba(0,0,0,0.22);font-weight:700;" : "");
+      btn.onclick = () => { selectedCategory = cat; renderPanel(); };
+      catRow.appendChild(btn);
+    });
+    panel.appendChild(catRow);
+
+    const cat = selectedCategory;
+    const catData = catalog[cat];
+    if (!catData) {
+      updateButtonLabel();
+      return;
+    }
+
+    const itemsTitle = document.createElement("div");
+    itemsTitle.textContent = "Clothes";
+    itemsTitle.style.cssText = "font-weight:600;margin:8px 0 4px;";
+    panel.appendChild(itemsTitle);
+
+    const itemRow = document.createElement("div");
+    itemRow.style.cssText = "display:flex;flex-wrap:wrap;gap:2px;margin-bottom:8px;";
+    Object.entries(catData.items || {}).forEach(([id, item]) => {
+      const n = Number(id);
+      const active = selectedItemFor(i, cat) === n;
+      const btn = makeButton(item.label || (n === 0 ? "Base" : `Item ${n}`));
+      btn.style.cssText = btnCss + (active ? "background:rgba(0,0,0,0.22);font-weight:700;" : "");
+      btn.onclick = () => setSelectedItem(i, cat, n);
+      itemRow.appendChild(btn);
+    });
+    panel.appendChild(itemRow);
+
+    const colorTitle = document.createElement("div");
+    colorTitle.textContent = "Color";
+    colorTitle.style.cssText = "font-weight:600;margin:8px 0 4px;";
+    panel.appendChild(colorTitle);
+
+    const colorRow = document.createElement("div");
+    colorRow.style.cssText = "display:flex;flex-wrap:wrap;gap:4px;";
+    Object.entries(COLOR_MAP).forEach(([name, hex]) => {
+      const active = selectedColorFor(i, cat) === name;
+      const btn = makeButton(name === "Original" ? "Original" : "");
+      btn.title = name;
+      btn.style.cssText = btnCss + `
+        min-width:${name === "Original" ? "72px" : "30px"};
+        height:30px;
+        border:${active ? "2px solid #111" : "1px solid rgba(0,0,0,0.2)"};
+        background:${hex || "linear-gradient(45deg,#fff,#ddd)"};
+      `;
+      btn.onclick = () => setSelectedColor(i, cat, name);
+      colorRow.appendChild(btn);
+    });
+    panel.appendChild(colorRow);
+
+    updateButtonLabel();
+  }
+
+  dressBtn.onclick = () => {
+    if (window._modeName === "shower") return;
+    panel.style.display = panel.style.display === "none" ? "block" : "none";
+    renderPanel();
+  };
+
+  // ---------- draw helper used by all pet modes ----------
+  window.drawOutfitOverlay = function (ctx, state, x, y, w, h, petIndexParam) {
+    if (window._modeName === "shower") return false;
+
+    const i = typeof petIndexParam === "number" ? petIndexParam : petIndex();
+    const catalog = getPetCatalog(i);
+    const selected = window.selectedClothes?.[i] || {};
+    const colors = window.clothingColors?.[i] || {};
+
+    let drew = false;
+    categoryKeys(i).forEach(cat => {
+      const catData = catalog[cat];
+      const itemId = selected[cat] ?? 0;
+      if (itemId === 0) return;
+
+      const item = catData?.items?.[itemId];
+      const set = item?.set;
+      if (!set) return;
+
+      let img = set[state] || set.stand;
+      if (!img || img._failed || (img.complete && img.naturalWidth === 0)) img = set.stand;
+
+      const colorName = colors[cat] || DEFAULT_COLOR;
+      const hex = COLOR_MAP[colorName] || null;
+      const drawImg = hex ? tintedImage(img, hex) : img;
+      if (safeDraw(ctx, drawImg, x, y, w, h)) drew = true;
+    });
+
+    return drew;
+  };
+
+  // ---------- shower compatibility ----------
+  window.enterShowerClothesRules = function () {
+    if (!Array.isArray(window._prevDressUpBeforeShower)) {
+      window._prevDressUpBeforeShower = window.selectedClothes.map(p => ({ ...p }));
+    }
+
+    window.selectedClothes = window.selectedClothes.map(p => {
+      const out = { ...p };
+      Object.keys(out).forEach(cat => { out[cat] = 0; });
+      return out;
+    });
+
+    syncLegacyOutfitFields();
+    if (dressBtn) dressBtn.style.display = "none";
+    if (panel) panel.style.display = "none";
     updateButtonLabel();
   };
 
   window.exitShowerClothesRules = function () {
-    // ✅ restore previous outfit if available (and not shower)
-    if (Array.isArray(window._prevOutfitsBeforeShower)) {
-      window.currentOutfits = window._prevOutfitsBeforeShower.slice();
-      delete window._prevOutfitsBeforeShower;
-      window.currentOutfit = window.currentOutfits[0] || DEFAULT_OUTFIT;
+    if (Array.isArray(window._prevDressUpBeforeShower)) {
+      window.selectedClothes = window._prevDressUpBeforeShower.map(p => ({ ...p }));
+      delete window._prevDressUpBeforeShower;
     }
-    if (window.clothesBtn) window.clothesBtn.style.display = "block";
+
+    syncLegacyOutfitFields();
+    if (dressBtn) dressBtn.style.display = "block";
     updateButtonLabel();
   };
 
-  // Allow modes to update active pet for outfit changes
-  if (!window.setActivePet) {
-    window.setActivePet = function (idx) {
-      const n = Number(idx);
-      if (!Number.isFinite(n)) return;
-      window.activePetIndex = Math.max(0, Math.min(1, Math.floor(n)));
-      updateButtonLabel();
-    };
-  }
+  window.setActivePet = function (idx) {
+    const n = Number(idx);
+    if (!Number.isFinite(n)) return;
+    window.activePetIndex = Math.max(0, Math.min(1, Math.floor(n)));
+    renderPanel();
+    updateButtonLabel();
+  };
+
+  renderPanel();
+  updateButtonLabel();
 })();

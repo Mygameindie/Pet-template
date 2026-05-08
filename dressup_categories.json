@@ -1,0 +1,8 @@
+[
+  { "key": "topUnderwear", "label": "Top Underwear", "z": 60, "file": "dressup_top_underwear.json" },
+  { "key": "bottomUnderwear", "label": "Bottom Underwear / Boxers", "z": 50, "file": "dressup_bottom_underwear.json" },
+  { "key": "top", "label": "Top", "z": 120, "file": "dressup_top.json" },
+  { "key": "bottom", "label": "Pants / Skirt", "z": 110, "file": "dressup_bottom.json" },
+  { "key": "shoes", "label": "Shoes", "z": 90, "file": "dressup_shoes.json" },
+  { "key": "hat", "label": "Hat", "z": 180, "file": "dressup_hat.json" }
+]

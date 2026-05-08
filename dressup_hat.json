@@ -1,0 +1,8 @@
+{
+  "0": [
+    { "id": "hat1", "label": "Hat 1", "prefix": "hat1" }
+  ],
+  "1": [
+    { "id": "hat1_2", "label": "Hat 1", "prefix": "hat1_2" }
+  ]
+}

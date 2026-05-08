@@ -1,0 +1,74 @@
+{
+  "defaults": {
+    "0": {
+      "topUnderwear": "topunderwear1",
+      "bottomUnderwear": "bottomunderwear1",
+      "top": 0,
+      "bottom": 0,
+      "shoes": 0,
+      "hat": 0
+    },
+    "1": {
+      "topUnderwear": "topunderwear1_2",
+      "bottomUnderwear": "bottomunderwear1_2",
+      "top": 0,
+      "bottom": 0,
+      "shoes": 0,
+      "hat": 0
+    }
+  },
+  "categories": [
+    { "key": "topUnderwear", "label": "Top Underwear", "z": 60 },
+    { "key": "bottomUnderwear", "label": "Bottom Underwear / Boxers", "z": 50 },
+    { "key": "top", "label": "Top", "z": 120 },
+    { "key": "bottom", "label": "Pants / Skirt", "z": 110 },
+    { "key": "shoes", "label": "Shoes", "z": 90 },
+    { "key": "hat", "label": "Hat", "z": 180 }
+  ],
+  "pets": {
+    "0": {
+      "topUnderwear": [
+        { "id": "topunderwear1", "label": "Top Underwear 1", "prefix": "topunderwear1" }
+      ],
+      "bottomUnderwear": [
+        { "id": "bottomunderwear1", "label": "Bottom Underwear 1", "prefix": "bottomunderwear1" },
+        { "id": "boxers1", "label": "Boxers 1", "prefix": "boxers1" }
+      ],
+      "top": [
+        { "id": "top1", "label": "Top 1", "prefix": "top1" }
+      ],
+      "bottom": [
+        { "id": "pants1", "label": "Pants 1", "prefix": "pants1" },
+        { "id": "skirt1", "label": "Skirt 1", "prefix": "skirt1" }
+      ],
+      "shoes": [
+        { "id": "shoes1", "label": "Shoes 1", "prefix": "shoes1" }
+      ],
+      "hat": [
+        { "id": "hat1", "label": "Hat 1", "prefix": "hat1" }
+      ]
+    },
+    "1": {
+      "topUnderwear": [
+        { "id": "topunderwear1_2", "label": "Top Underwear 1", "prefix": "topunderwear1_2" }
+      ],
+      "bottomUnderwear": [
+        { "id": "bottomunderwear1_2", "label": "Bottom Underwear 1", "prefix": "bottomunderwear1_2" },
+        { "id": "boxers1_2", "label": "Boxers 1", "prefix": "boxers1_2" }
+      ],
+      "top": [
+        { "id": "top1_2", "label": "Top 1", "prefix": "top1_2" }
+      ],
+      "bottom": [
+        { "id": "pants1_2", "label": "Pants 1", "prefix": "pants1_2" },
+        { "id": "skirt1_2", "label": "Skirt 1", "prefix": "skirt1_2" }
+      ],
+      "shoes": [
+        { "id": "shoes1_2", "label": "Shoes 1", "prefix": "shoes1_2" }
+      ],
+      "hat": [
+        { "id": "hat1_2", "label": "Hat 1", "prefix": "hat1_2" }
+      ]
+    }
+  }
+}

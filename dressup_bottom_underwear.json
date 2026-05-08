@@ -1,7 +1,6 @@
 {
   "0": [
-    { "id": "bottomunderwear1", "label": "Bottom Underwear 1", "prefix": "bottomunderwear1" },
-    { "id": "boxers1", "label": "Boxers 1", "prefix": "boxers1" }
+    { "id": "bottomunderwear1", "label": "Bottom Underwear 1", "prefix": "bottomunderwear1" }
   ],
   "1": [
     { "id": "bottomunderwear1_2", "label": "Bottom Underwear 1", "prefix": "bottomunderwear1_2" },

@@ -1,10 +1,10 @@
 // ===========================================================
-// 👕 outfit_system.js — Simple Dress-Up System
+// 👕 outfit_system.js — Layered Dress-Up System
 // Branch: dress-up-2
-// Purpose: Toy-style clothes + color only, no wind, no toy system
+// Purpose: Toy-style separate clothes + color only
+// No wind system. No toy system.
 // ===========================================================
 (() => {
-  // ---------- helpers ----------
   const DEFAULT_COLOR = "Original";
   const COLOR_MAP = {
     Original: null,
@@ -18,6 +18,30 @@
     Pink: "#ff2d55",
   };
 
+  // Naming convention for assets:
+  // Pet 1:
+  //   top1_stand.png, top1_fall.png, top1_fly0.png, top1_fly1.png, top1_sleep.png
+  //   pants1_stand.png, skirt1_stand.png, shoes1_stand.png, hat1_stand.png, etc.
+  // Pet 2:
+  //   top1_2_stand.png, pants1_2_stand.png, skirt1_2_stand.png, shoes1_2_stand.png, hat1_2_stand.png
+  // Add more item numbers by adding files like top2_stand.png, shoes3_stand.png, etc.
+
+  const CATEGORY_ORDER = ["top", "bottom", "shoes", "hat"];
+  const CATEGORY_LABELS = {
+    top: "Top",
+    bottom: "Pants / Skirt",
+    shoes: "Shoes",
+    hat: "Hat",
+  };
+  const CATEGORY_Z = {
+    top: 120,
+    bottom: 110,
+    shoes: 90,
+    hat: 180,
+  };
+
+  const DEFAULT_ITEM_COUNT = 10;
+
   function createImg(src) {
     const img = new Image();
     img._failed = false;
@@ -26,7 +50,7 @@
     return img;
   }
 
-  function loadClothingSet(prefix) {
+  function loadLayer(prefix) {
     return {
       stand: createImg(`${prefix}_stand.png`),
       fall: createImg(`${prefix}_fall.png`),
@@ -36,13 +60,112 @@
     };
   }
 
-  function ensureArray(value, fallback) {
-    return Array.isArray(value) ? value : fallback;
+  function petSuffix(petIndex) {
+    return petIndex === 1 ? "_2" : "";
   }
 
-  function petIndex() {
+  function makeItem(label, prefix) {
+    return { label, set: loadLayer(prefix) };
+  }
+
+  function buildCatalogForPet(petIndex) {
+    const suffix = petSuffix(petIndex);
+    const catalog = {
+      top: {
+        label: CATEGORY_LABELS.top,
+        z: CATEGORY_Z.top,
+        items: { 0: { label: "None", set: null } },
+      },
+      bottom: {
+        label: CATEGORY_LABELS.bottom,
+        z: CATEGORY_Z.bottom,
+        items: { 0: { label: "None", set: null } },
+      },
+      shoes: {
+        label: CATEGORY_LABELS.shoes,
+        z: CATEGORY_Z.shoes,
+        items: { 0: { label: "None", set: null } },
+      },
+      hat: {
+        label: CATEGORY_LABELS.hat,
+        z: CATEGORY_Z.hat,
+        items: { 0: { label: "None", set: null } },
+      },
+    };
+
+    for (let i = 1; i <= DEFAULT_ITEM_COUNT; i++) {
+      catalog.top.items[i] = makeItem(`Top ${i}`, `top${i}${suffix}`);
+      catalog.bottom.items[`pants${i}`] = makeItem(`Pants ${i}`, `pants${i}${suffix}`);
+      catalog.bottom.items[`skirt${i}`] = makeItem(`Skirt ${i}`, `skirt${i}${suffix}`);
+      catalog.shoes.items[i] = makeItem(`Shoes ${i}`, `shoes${i}${suffix}`);
+      catalog.hat.items[i] = makeItem(`Hat ${i}`, `hat${i}${suffix}`);
+    }
+
+    return catalog;
+  }
+
+  const builtInCatalog = {
+    0: buildCatalogForPet(0),
+    1: buildCatalogForPet(1),
+  };
+
+  window.dressUpCatalog = window.dressUpCatalog || builtInCatalog;
+
+  if (typeof window.activePetIndex !== "number") window.activePetIndex = 0;
+
+  window.selectedClothes = window.selectedClothes || [
+    { top: 0, bottom: 0, shoes: 0, hat: 0 },
+    { top: 0, bottom: 0, shoes: 0, hat: 0 },
+  ];
+
+  window.clothingColors = window.clothingColors || [
+    { top: DEFAULT_COLOR, bottom: DEFAULT_COLOR, shoes: DEFAULT_COLOR, hat: DEFAULT_COLOR },
+    { top: DEFAULT_COLOR, bottom: DEFAULT_COLOR, shoes: DEFAULT_COLOR, hat: DEFAULT_COLOR },
+  ];
+
+  // Old field compatibility. Full outfit cycling is intentionally disabled here.
+  window.currentOutfits = [0, 0];
+  window.currentOutfit = 0;
+
+  function activePet() {
     const n = Number(window.activePetIndex);
     return Number.isFinite(n) ? Math.max(0, Math.min(1, Math.floor(n))) : 0;
+  }
+
+  function getCatalog(petIndex) {
+    return window.dressUpCatalog?.[petIndex] || window.dressUpCatalog?.[0] || {};
+  }
+
+  function getCategoryKeys(petIndex) {
+    const catalog = getCatalog(petIndex);
+    return CATEGORY_ORDER.filter(cat => catalog[cat]);
+  }
+
+  function getItem(catData, id) {
+    if (!catData || !catData.items) return null;
+    return catData.items[id] || null;
+  }
+
+  function selectedItemFor(petIndex, category) {
+    return window.selectedClothes?.[petIndex]?.[category] ?? 0;
+  }
+
+  function selectedColorFor(petIndex, category) {
+    return window.clothingColors?.[petIndex]?.[category] || DEFAULT_COLOR;
+  }
+
+  function setSelectedItem(petIndex, category, itemId) {
+    if (!window.selectedClothes[petIndex]) window.selectedClothes[petIndex] = {};
+    window.selectedClothes[petIndex][category] = itemId;
+    renderPanel();
+    updateButtonLabel();
+  }
+
+  function setSelectedColor(petIndex, category, colorName) {
+    if (!window.clothingColors[petIndex]) window.clothingColors[petIndex] = {};
+    window.clothingColors[petIndex][category] = colorName;
+    renderPanel();
+    updateButtonLabel();
   }
 
   function safeDraw(ctx, img, x, y, w, h) {
@@ -51,72 +174,7 @@
     return true;
   }
 
-  // ---------- clothing database ----------
-  // Current assets follow the old outfit naming:
-  // Pet 1: outfit1_stand.png, outfit2_stand.png, etc.
-  // Pet 2: outfit1_2_stand.png, outfit2_2_stand.png, etc.
-  // Add more categories later by extending window.dressUpCatalog before this file loads,
-  // or by editing this catalog directly.
-  const builtInCatalog = {
-    0: {
-      outfit: {
-        label: "Outfit",
-        z: 100,
-        items: {
-          0: { label: "Base", set: null },
-          1: { label: "Outfit 1", set: loadClothingSet("outfit1") },
-          2: { label: "Outfit 2", set: loadClothingSet("outfit2") },
-          3: { label: "Outfit 3", set: loadClothingSet("outfit3") },
-          4: { label: "Outfit 4", set: loadClothingSet("outfit4") },
-        },
-      },
-    },
-    1: {
-      outfit: {
-        label: "Outfit",
-        z: 100,
-        items: {
-          0: { label: "Base", set: null },
-          1: { label: "Outfit 1", set: loadClothingSet("outfit1_2") },
-          2: { label: "Outfit 2", set: loadClothingSet("outfit2_2") },
-          3: { label: "Outfit 3", set: loadClothingSet("outfit3_2") },
-          4: { label: "Outfit 4", set: loadClothingSet("outfit4_2") },
-        },
-      },
-    },
-  };
-
-  window.dressUpCatalog = window.dressUpCatalog || builtInCatalog;
-
-  // ---------- global state ----------
-  if (typeof window.activePetIndex !== "number") window.activePetIndex = 0;
-
-  // selectedClothes[petIndex][category] = itemId
-  window.selectedClothes = window.selectedClothes || [
-    { outfit: 1 },
-    { outfit: 1 },
-  ];
-
-  // clothingColors[petIndex][category] = colorName
-  window.clothingColors = window.clothingColors || [
-    { outfit: DEFAULT_COLOR },
-    { outfit: DEFAULT_COLOR },
-  ];
-
-  // Back-compat with old outfit button system.
-  window.currentOutfits = ensureArray(window.currentOutfits, [1, 1]);
-  window.currentOutfit = typeof window.currentOutfits[0] === "number" ? window.currentOutfits[0] : 1;
-
-  function syncLegacyOutfitFields() {
-    for (let i = 0; i < 2; i++) {
-      const selected = window.selectedClothes?.[i]?.outfit;
-      window.currentOutfits[i] = typeof selected === "number" ? selected : 0;
-    }
-    window.currentOutfit = window.currentOutfits[0] || 0;
-  }
-  syncLegacyOutfitFields();
-
-  // ---------- color tint cache ----------
+  // ---------- color tint ----------
   const tintCache = new Map();
 
   function hexToRgb(hex) {
@@ -146,22 +204,19 @@
 
     try {
       ctx.drawImage(img, 0, 0);
-      const data = ctx.getImageData(0, 0, cv.width, cv.height);
-      const d = data.data;
+      const imageData = ctx.getImageData(0, 0, cv.width, cv.height);
+      const d = imageData.data;
 
       for (let i = 0; i < d.length; i += 4) {
-        const a = d[i + 3];
-        if (!a) continue;
-
-        // Preserve shadows/highlights by multiplying original luminance into target color.
+        if (!d[i + 3]) continue;
         const lum = (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255;
         const shade = Math.max(0.18, Math.min(1.25, lum * 1.35));
-        d[i]     = Math.min(255, rgb.r * shade);
+        d[i] = Math.min(255, rgb.r * shade);
         d[i + 1] = Math.min(255, rgb.g * shade);
         d[i + 2] = Math.min(255, rgb.b * shade);
       }
 
-      ctx.putImageData(data, 0, 0);
+      ctx.putImageData(imageData, 0, 0);
     } catch (_) {
       return img;
     }
@@ -173,7 +228,7 @@
   }
 
   // ---------- UI ----------
-  let selectedCategory = "outfit";
+  let selectedCategory = "top";
 
   function makeButton(text, className) {
     const btn = document.createElement("button");
@@ -182,23 +237,7 @@
     return btn;
   }
 
-  const panelCss = `
-    position: fixed;
-    right: 10px;
-    bottom: calc(108px + env(safe-area-inset-bottom));
-    width: min(330px, calc(100vw - 20px));
-    max-height: 48vh;
-    overflow: auto;
-    display: none;
-    z-index: 9999;
-    padding: 10px;
-    border-radius: 12px;
-    background: rgba(255,255,255,0.95);
-    box-shadow: 0 6px 24px rgba(0,0,0,0.22);
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  `;
-
-  const btnCss = `
+  const commonBtnCss = `
     border: 0;
     border-radius: 9px;
     padding: 7px 10px;
@@ -235,57 +274,37 @@
   if (!panel) {
     panel = document.createElement("div");
     panel.id = "dressup-panel";
-    panel.style.cssText = panelCss;
+    panel.style.cssText = `
+      position: fixed;
+      right: 10px;
+      bottom: calc(108px + env(safe-area-inset-bottom));
+      width: min(350px, calc(100vw - 20px));
+      max-height: 52vh;
+      overflow: auto;
+      display: none;
+      z-index: 9999;
+      padding: 10px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.95);
+      box-shadow: 0 6px 24px rgba(0,0,0,0.22);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    `;
     document.body.appendChild(panel);
   }
 
-  function getPetCatalog(i) {
-    return window.dressUpCatalog?.[i] || window.dressUpCatalog?.[0] || {};
-  }
-
-  function categoryKeys(i) {
-    return Object.keys(getPetCatalog(i)).sort((a, b) => {
-      const ca = getPetCatalog(i)[a];
-      const cb = getPetCatalog(i)[b];
-      return (ca.z || 0) - (cb.z || 0);
-    });
-  }
-
-  function selectedItemFor(i, cat) {
-    return window.selectedClothes?.[i]?.[cat] ?? 0;
-  }
-
-  function selectedColorFor(i, cat) {
-    return window.clothingColors?.[i]?.[cat] || DEFAULT_COLOR;
-  }
-
-  function setSelectedItem(i, cat, id) {
-    if (!window.selectedClothes[i]) window.selectedClothes[i] = {};
-    window.selectedClothes[i][cat] = Number(id);
-    syncLegacyOutfitFields();
-    renderPanel();
-  }
-
-  function setSelectedColor(i, cat, colorName) {
-    if (!window.clothingColors[i]) window.clothingColors[i] = {};
-    window.clothingColors[i][cat] = colorName;
-    renderPanel();
-  }
-
   function updateButtonLabel() {
-    const i = petIndex();
-    const item = selectedItemFor(i, "outfit");
-    const color = selectedColorFor(i, "outfit");
-    dressBtn.textContent = item === 0
-      ? `Dress Up (Pet ${i + 1}: Base)`
-      : `Dress Up (Pet ${i + 1}: Outfit ${item}${color !== DEFAULT_COLOR ? ", " + color : ""})`;
+    const i = activePet();
+    const chosen = getCategoryKeys(i)
+      .map(cat => selectedItemFor(i, cat))
+      .filter(id => id !== 0).length;
+    dressBtn.textContent = `Dress Up (Pet ${i + 1}: ${chosen} item${chosen === 1 ? "" : "s"})`;
   }
 
   function renderPanel() {
-    const i = petIndex();
-    const catalog = getPetCatalog(i);
-    const cats = categoryKeys(i);
-    if (!cats.includes(selectedCategory)) selectedCategory = cats[0] || "outfit";
+    const i = activePet();
+    const catalog = getCatalog(i);
+    const cats = getCategoryKeys(i);
+    if (!cats.includes(selectedCategory)) selectedCategory = cats[0] || "top";
 
     panel.innerHTML = "";
 
@@ -293,7 +312,7 @@
     title.style.cssText = "font-weight:700;margin-bottom:8px;display:flex;justify-content:space-between;gap:8px;align-items:center;";
     title.innerHTML = `<span>Pet ${i + 1} Dress Up</span>`;
     const close = makeButton("✕");
-    close.style.cssText = btnCss + "padding:4px 8px;";
+    close.style.cssText = commonBtnCss + "padding:4px 8px;";
     close.onclick = () => { panel.style.display = "none"; };
     title.appendChild(close);
     panel.appendChild(title);
@@ -302,7 +321,7 @@
     catRow.style.cssText = "display:flex;overflow-x:auto;padding-bottom:4px;margin-bottom:8px;";
     cats.forEach(cat => {
       const btn = makeButton(catalog[cat].label || cat);
-      btn.style.cssText = btnCss + (cat === selectedCategory ? "background:rgba(0,0,0,0.22);font-weight:700;" : "");
+      btn.style.cssText = commonBtnCss + (cat === selectedCategory ? "background:rgba(0,0,0,0.22);font-weight:700;" : "");
       btn.onclick = () => { selectedCategory = cat; renderPanel(); };
       catRow.appendChild(btn);
     });
@@ -310,24 +329,20 @@
 
     const cat = selectedCategory;
     const catData = catalog[cat];
-    if (!catData) {
-      updateButtonLabel();
-      return;
-    }
+    if (!catData) return;
 
-    const itemsTitle = document.createElement("div");
-    itemsTitle.textContent = "Clothes";
-    itemsTitle.style.cssText = "font-weight:600;margin:8px 0 4px;";
-    panel.appendChild(itemsTitle);
+    const itemTitle = document.createElement("div");
+    itemTitle.textContent = "Clothes";
+    itemTitle.style.cssText = "font-weight:600;margin:8px 0 4px;";
+    panel.appendChild(itemTitle);
 
     const itemRow = document.createElement("div");
     itemRow.style.cssText = "display:flex;flex-wrap:wrap;gap:2px;margin-bottom:8px;";
     Object.entries(catData.items || {}).forEach(([id, item]) => {
-      const n = Number(id);
-      const active = selectedItemFor(i, cat) === n;
-      const btn = makeButton(item.label || (n === 0 ? "Base" : `Item ${n}`));
-      btn.style.cssText = btnCss + (active ? "background:rgba(0,0,0,0.22);font-weight:700;" : "");
-      btn.onclick = () => setSelectedItem(i, cat, n);
+      const active = String(selectedItemFor(i, cat)) === String(id);
+      const btn = makeButton(item.label || String(id));
+      btn.style.cssText = commonBtnCss + (active ? "background:rgba(0,0,0,0.22);font-weight:700;" : "");
+      btn.onclick = () => setSelectedItem(i, cat, id === "0" ? 0 : id);
       itemRow.appendChild(btn);
     });
     panel.appendChild(itemRow);
@@ -343,7 +358,7 @@
       const active = selectedColorFor(i, cat) === name;
       const btn = makeButton(name === "Original" ? "Original" : "");
       btn.title = name;
-      btn.style.cssText = btnCss + `
+      btn.style.cssText = commonBtnCss + `
         min-width:${name === "Original" ? "72px" : "30px"};
         height:30px;
         border:${active ? "2px solid #111" : "1px solid rgba(0,0,0,0.2)"};
@@ -354,6 +369,11 @@
     });
     panel.appendChild(colorRow);
 
+    const note = document.createElement("div");
+    note.textContent = "Missing image files are skipped automatically.";
+    note.style.cssText = "font-size:11px;opacity:0.65;margin-top:8px;";
+    panel.appendChild(note);
+
     updateButtonLabel();
   }
 
@@ -363,33 +383,34 @@
     renderPanel();
   };
 
-  // ---------- draw helper used by all pet modes ----------
+  // ---------- canvas draw hook ----------
   window.drawOutfitOverlay = function (ctx, state, x, y, w, h, petIndexParam) {
     if (window._modeName === "shower") return false;
 
-    const i = typeof petIndexParam === "number" ? petIndexParam : petIndex();
-    const catalog = getPetCatalog(i);
+    const i = typeof petIndexParam === "number" ? petIndexParam : activePet();
+    const catalog = getCatalog(i);
     const selected = window.selectedClothes?.[i] || {};
     const colors = window.clothingColors?.[i] || {};
-
     let drew = false;
-    categoryKeys(i).forEach(cat => {
-      const catData = catalog[cat];
-      const itemId = selected[cat] ?? 0;
-      if (itemId === 0) return;
 
-      const item = catData?.items?.[itemId];
-      const set = item?.set;
-      if (!set) return;
+    getCategoryKeys(i)
+      .sort((a, b) => (catalog[a].z || 0) - (catalog[b].z || 0))
+      .forEach(cat => {
+        const id = selected[cat] ?? 0;
+        if (id === 0 || id === "0") return;
 
-      let img = set[state] || set.stand;
-      if (!img || img._failed || (img.complete && img.naturalWidth === 0)) img = set.stand;
+        const item = getItem(catalog[cat], id);
+        if (!item || !item.set) return;
 
-      const colorName = colors[cat] || DEFAULT_COLOR;
-      const hex = COLOR_MAP[colorName] || null;
-      const drawImg = hex ? tintedImage(img, hex) : img;
-      if (safeDraw(ctx, drawImg, x, y, w, h)) drew = true;
-    });
+        let img = item.set[state] || item.set.stand;
+        if (!img || img._failed || (img.complete && img.naturalWidth === 0)) img = item.set.stand;
+        if (!img || img._failed) return;
+
+        const colorName = colors[cat] || DEFAULT_COLOR;
+        const hex = COLOR_MAP[colorName] || null;
+        const drawImg = hex ? tintedImage(img, hex) : img;
+        if (safeDraw(ctx, drawImg, x, y, w, h)) drew = true;
+      });
 
     return drew;
   };
@@ -401,12 +422,11 @@
     }
 
     window.selectedClothes = window.selectedClothes.map(p => {
-      const out = { ...p };
-      Object.keys(out).forEach(cat => { out[cat] = 0; });
-      return out;
+      const next = { ...p };
+      Object.keys(next).forEach(cat => { next[cat] = 0; });
+      return next;
     });
 
-    syncLegacyOutfitFields();
     if (dressBtn) dressBtn.style.display = "none";
     if (panel) panel.style.display = "none";
     updateButtonLabel();
@@ -418,7 +438,6 @@
       delete window._prevDressUpBeforeShower;
     }
 
-    syncLegacyOutfitFields();
     if (dressBtn) dressBtn.style.display = "block";
     updateButtonLabel();
   };

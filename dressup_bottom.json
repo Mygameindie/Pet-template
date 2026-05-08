@@ -1,0 +1,10 @@
+{
+  "0": [
+    { "id": "pants1", "label": "Pants 1", "prefix": "pants1" },
+    { "id": "skirt1", "label": "Skirt 1", "prefix": "skirt1" }
+  ],
+  "1": [
+    { "id": "pants1_2", "label": "Pants 1", "prefix": "pants1_2" },
+    { "id": "skirt1_2", "label": "Skirt 1", "prefix": "skirt1_2" }
+  ]
+}

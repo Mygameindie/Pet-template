@@ -1,7 +1,7 @@
 // ===========================================================
-// 👕 outfit_system.js — Layered Dress-Up System
-// Branch: dress-up-2
-// Purpose: Toy-style separate clothes + color only
+// 👕 outfit_system.js — Layered Dress-Up + Underwear System
+// Branch: 3
+// Purpose: Toy-style separate underwear/clothes + color only
 // No wind system. No toy system.
 // ===========================================================
 (() => {
@@ -18,25 +18,31 @@
     Pink: "#ff2d55",
   };
 
-  // Naming convention for assets:
+  // Asset naming convention:
   // Pet 1:
-  //   top1_stand.png, top1_fall.png, top1_fly0.png, top1_fly1.png, top1_sleep.png
-  //   pants1_stand.png, skirt1_stand.png, shoes1_stand.png, hat1_stand.png, etc.
+  //   topunderwear1_stand.png, bottomunderwear1_stand.png, boxers1_stand.png
+  //   top1_stand.png, pants1_stand.png, skirt1_stand.png, shoes1_stand.png, hat1_stand.png
   // Pet 2:
+  //   topunderwear1_2_stand.png, bottomunderwear1_2_stand.png, boxers1_2_stand.png
   //   top1_2_stand.png, pants1_2_stand.png, skirt1_2_stand.png, shoes1_2_stand.png, hat1_2_stand.png
-  // Add more item numbers by adding files like top2_stand.png, shoes3_stand.png, etc.
+  // Optional states:
+  //   _fall.png, _fly0.png, _fly1.png, _sleep.png
 
-  const CATEGORY_ORDER = ["top", "bottom", "shoes", "hat"];
+  const CATEGORY_ORDER = ["topUnderwear", "bottomUnderwear", "top", "bottom", "shoes", "hat"];
   const CATEGORY_LABELS = {
+    topUnderwear: "Top Underwear",
+    bottomUnderwear: "Bottom Underwear / Boxers",
     top: "Top",
     bottom: "Pants / Skirt",
     shoes: "Shoes",
     hat: "Hat",
   };
   const CATEGORY_Z = {
-    top: 120,
-    bottom: 110,
+    bottomUnderwear: 50,
+    topUnderwear: 60,
     shoes: 90,
+    bottom: 110,
+    top: 120,
     hat: 180,
   };
 
@@ -68,32 +74,30 @@
     return { label, set: loadLayer(prefix) };
   }
 
+  function emptyCategory(key) {
+    return {
+      label: CATEGORY_LABELS[key] || key,
+      z: CATEGORY_Z[key] || 100,
+      items: { 0: { label: "None", set: null } },
+    };
+  }
+
   function buildCatalogForPet(petIndex) {
     const suffix = petSuffix(petIndex);
     const catalog = {
-      top: {
-        label: CATEGORY_LABELS.top,
-        z: CATEGORY_Z.top,
-        items: { 0: { label: "None", set: null } },
-      },
-      bottom: {
-        label: CATEGORY_LABELS.bottom,
-        z: CATEGORY_Z.bottom,
-        items: { 0: { label: "None", set: null } },
-      },
-      shoes: {
-        label: CATEGORY_LABELS.shoes,
-        z: CATEGORY_Z.shoes,
-        items: { 0: { label: "None", set: null } },
-      },
-      hat: {
-        label: CATEGORY_LABELS.hat,
-        z: CATEGORY_Z.hat,
-        items: { 0: { label: "None", set: null } },
-      },
+      topUnderwear: emptyCategory("topUnderwear"),
+      bottomUnderwear: emptyCategory("bottomUnderwear"),
+      top: emptyCategory("top"),
+      bottom: emptyCategory("bottom"),
+      shoes: emptyCategory("shoes"),
+      hat: emptyCategory("hat"),
     };
 
     for (let i = 1; i <= DEFAULT_ITEM_COUNT; i++) {
+      catalog.topUnderwear.items[i] = makeItem(`Top Underwear ${i}`, `topunderwear${i}${suffix}`);
+      catalog.bottomUnderwear.items[`bottomunderwear${i}`] = makeItem(`Bottom Underwear ${i}`, `bottomunderwear${i}${suffix}`);
+      catalog.bottomUnderwear.items[`boxers${i}`] = makeItem(`Boxers ${i}`, `boxers${i}${suffix}`);
+
       catalog.top.items[i] = makeItem(`Top ${i}`, `top${i}${suffix}`);
       catalog.bottom.items[`pants${i}`] = makeItem(`Pants ${i}`, `pants${i}${suffix}`);
       catalog.bottom.items[`skirt${i}`] = makeItem(`Skirt ${i}`, `skirt${i}${suffix}`);
@@ -114,16 +118,16 @@
   if (typeof window.activePetIndex !== "number") window.activePetIndex = 0;
 
   window.selectedClothes = window.selectedClothes || [
-    { top: 0, bottom: 0, shoes: 0, hat: 0 },
-    { top: 0, bottom: 0, shoes: 0, hat: 0 },
+    { topUnderwear: 1, bottomUnderwear: "bottomunderwear1", top: 0, bottom: 0, shoes: 0, hat: 0 },
+    { topUnderwear: 1, bottomUnderwear: "bottomunderwear1", top: 0, bottom: 0, shoes: 0, hat: 0 },
   ];
 
   window.clothingColors = window.clothingColors || [
-    { top: DEFAULT_COLOR, bottom: DEFAULT_COLOR, shoes: DEFAULT_COLOR, hat: DEFAULT_COLOR },
-    { top: DEFAULT_COLOR, bottom: DEFAULT_COLOR, shoes: DEFAULT_COLOR, hat: DEFAULT_COLOR },
+    { topUnderwear: DEFAULT_COLOR, bottomUnderwear: DEFAULT_COLOR, top: DEFAULT_COLOR, bottom: DEFAULT_COLOR, shoes: DEFAULT_COLOR, hat: DEFAULT_COLOR },
+    { topUnderwear: DEFAULT_COLOR, bottomUnderwear: DEFAULT_COLOR, top: DEFAULT_COLOR, bottom: DEFAULT_COLOR, shoes: DEFAULT_COLOR, hat: DEFAULT_COLOR },
   ];
 
-  // Old field compatibility. Full outfit cycling is intentionally disabled here.
+  // Old full-outfit fields are kept only for compatibility with existing modes.
   window.currentOutfits = [0, 0];
   window.currentOutfit = 0;
 
@@ -228,7 +232,7 @@
   }
 
   // ---------- UI ----------
-  let selectedCategory = "top";
+  let selectedCategory = "topUnderwear";
 
   function makeButton(text, className) {
     const btn = document.createElement("button");
@@ -278,8 +282,8 @@
       position: fixed;
       right: 10px;
       bottom: calc(108px + env(safe-area-inset-bottom));
-      width: min(350px, calc(100vw - 20px));
-      max-height: 52vh;
+      width: min(360px, calc(100vw - 20px));
+      max-height: 54vh;
       overflow: auto;
       display: none;
       z-index: 9999;
@@ -296,7 +300,7 @@
     const i = activePet();
     const chosen = getCategoryKeys(i)
       .map(cat => selectedItemFor(i, cat))
-      .filter(id => id !== 0).length;
+      .filter(id => id !== 0 && id !== "0").length;
     dressBtn.textContent = `Dress Up (Pet ${i + 1}: ${chosen} item${chosen === 1 ? "" : "s"})`;
   }
 
@@ -304,7 +308,7 @@
     const i = activePet();
     const catalog = getCatalog(i);
     const cats = getCategoryKeys(i);
-    if (!cats.includes(selectedCategory)) selectedCategory = cats[0] || "top";
+    if (!cats.includes(selectedCategory)) selectedCategory = cats[0] || "topUnderwear";
 
     panel.innerHTML = "";
 
@@ -332,7 +336,7 @@
     if (!catData) return;
 
     const itemTitle = document.createElement("div");
-    itemTitle.textContent = "Clothes";
+    itemTitle.textContent = "Item";
     itemTitle.style.cssText = "font-weight:600;margin:8px 0 4px;";
     panel.appendChild(itemTitle);
 
@@ -370,7 +374,7 @@
     panel.appendChild(colorRow);
 
     const note = document.createElement("div");
-    note.textContent = "Missing image files are skipped automatically.";
+    note.textContent = "Use None to remove underwear or clothing. Missing image files are skipped automatically.";
     note.style.cssText = "font-size:11px;opacity:0.65;margin-top:8px;";
     panel.appendChild(note);
 

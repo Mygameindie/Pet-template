@@ -1,4 +1,9 @@
 // Split-JSON dress-up system. One image per item: {prefix}.png
+// Branch 3 logic:
+// - Pet 1 is girl: top underwear + bottom underwear, or one-piece underwear.
+// - Pet 2 is boy: bottom underwear / boxers only.
+// - Girl one-piece clears top/bottom underwear.
+// - Girl top/bottom underwear clears one-piece and auto-pairs the matching set number.
 (() => {
   const CAT_FILE = "dressup_categories.json";
   const DEFAULT_FILE = "dressup_defaults.json";
@@ -13,6 +18,7 @@
   const FALLBACK_CATS = [
     { key: "topUnderwear", label: "Top Underwear", z: 60, file: "dressup_top_underwear.json" },
     { key: "bottomUnderwear", label: "Bottom Underwear / Boxers", z: 50, file: "dressup_bottom_underwear.json" },
+    { key: "onepieceUnderwear", label: "One-Piece Underwear", z: 65, file: "dressup_onepiece_underwear.json" },
     { key: "top", label: "Top", z: 120, file: "dressup_top.json" },
     { key: "bottom", label: "Pants / Skirt", z: 110, file: "dressup_bottom.json" },
     { key: "shoes", label: "Shoes", z: 90, file: "dressup_shoes.json" },
@@ -55,24 +61,26 @@
 
   function fallbackDefaults() {
     return {
-      0: { topUnderwear: "topunderwear1", bottomUnderwear: "bottomunderwear1", top: 0, bottom: 0, shoes: 0, hat: 0 },
-      1: { topUnderwear: "topunderwear1_2", bottomUnderwear: "bottomunderwear1_2", top: 0, bottom: 0, shoes: 0, hat: 0 },
+      0: { topUnderwear: "topunderwear1", bottomUnderwear: "bottomunderwear1", onepieceUnderwear: 0, top: 0, bottom: 0, shoes: 0, hat: 0 },
+      1: { topUnderwear: 0, bottomUnderwear: "boxers1_2", onepieceUnderwear: 0, top: 0, bottom: 0, shoes: 0, hat: 0 },
     };
   }
 
   function fallbackCatalog(cats) {
     const catalog = { 0: {}, 1: {} };
     [0, 1].forEach(p => cats.forEach(c => catalog[p][c.key] = emptyCat(c)));
-    const add = (p, cat, id, label) => { catalog[p][cat].items[id] = { id, label, img: img(`${id}.png`) }; };
+    const add = (p, cat, id, label) => {
+      if (!catalog[p][cat]) return;
+      catalog[p][cat].items[id] = { id, label, img: img(`${id}.png`) };
+    };
     add(0, "topUnderwear", "topunderwear1", "Top Underwear 1");
     add(0, "bottomUnderwear", "bottomunderwear1", "Bottom Underwear 1");
-    add(0, "bottomUnderwear", "boxers1", "Boxers 1");
+    add(0, "onepieceUnderwear", "onepieceunderwear1", "One-Piece Underwear 1");
     add(0, "top", "top1", "Top 1");
     add(0, "bottom", "pants1", "Pants 1");
     add(0, "bottom", "skirt1", "Skirt 1");
     add(0, "shoes", "shoes1", "Shoes 1");
     add(0, "hat", "hat1", "Hat 1");
-    add(1, "topUnderwear", "topunderwear1_2", "Top Underwear 1");
     add(1, "bottomUnderwear", "bottomunderwear1_2", "Bottom Underwear 1");
     add(1, "bottomUnderwear", "boxers1_2", "Boxers 1");
     add(1, "top", "top1_2", "Top 1");
@@ -159,6 +167,41 @@
     if (!catKeys().includes(selectedCategory)) selectedCategory = catKeys()[0] || "topUnderwear";
     renderPanel();
     updateButtonLabel();
+  }
+
+  function setNumberFromId(id) {
+    const m = String(id || "").match(/(\d+)(?:_\d+)?$/);
+    return m ? m[1] : null;
+  }
+
+  function findItemBySetNumber(p, category, n) {
+    if (!n) return 0;
+    const items = window.dressUpCatalog[p]?.[category]?.items || {};
+    const entries = Object.keys(items).filter(id => id !== "0");
+    return entries.find(id => setNumberFromId(id) === String(n)) || 0;
+  }
+
+  function applyUnderwearRules(p, category, id) {
+    // Girl-only underwear pairing rules. Pet index 0 = pet1/girl.
+    if (p !== 0) return;
+    if (id === 0 || id === "0") return;
+
+    if (category === "onepieceUnderwear") {
+      window.selectedClothes[p].topUnderwear = 0;
+      window.selectedClothes[p].bottomUnderwear = 0;
+      return;
+    }
+
+    if (category === "topUnderwear" || category === "bottomUnderwear") {
+      const n = setNumberFromId(id);
+      window.selectedClothes[p].onepieceUnderwear = 0;
+
+      const topMatch = findItemBySetNumber(p, "topUnderwear", n);
+      const bottomMatch = findItemBySetNumber(p, "bottomUnderwear", n);
+
+      if (topMatch) window.selectedClothes[p].topUnderwear = topMatch;
+      if (bottomMatch) window.selectedClothes[p].bottomUnderwear = bottomMatch;
+    }
   }
 
   const tintCache = new Map();
@@ -281,6 +324,7 @@
       if (active) b.style.cssText += "background:rgba(0,0,0,.22);font-weight:700;";
       b.onclick = () => {
         window.selectedClothes[p][selectedCategory] = id === "0" ? 0 : id;
+        applyUnderwearRules(p, selectedCategory, window.selectedClothes[p][selectedCategory]);
         renderPanel();
         updateButtonLabel();
       };
@@ -309,7 +353,7 @@
     panel.appendChild(colorRow);
 
     const note = document.createElement("div");
-    note.textContent = "Each JSON prefix loads one image: {prefix}.png. Use None to remove an item.";
+    note.textContent = "Girl: one-piece clears top/bottom underwear; choosing top/bottom auto-pairs the matching set number.";
     note.style.cssText = "font-size:11px;opacity:.65;margin-top:8px;";
     panel.appendChild(note);
     updateButtonLabel();

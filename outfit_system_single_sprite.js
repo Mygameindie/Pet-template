@@ -128,9 +128,21 @@
   }
 
   function catKeys(p = activePet()) {
-    const catalog = window.dressUpCatalog[p] || window.dressUpCatalog[0] || {};
-    return cats.map(c => c.key).filter(k => catalog[k]);
-  }
+  const catalog = window.dressUpCatalog[p] || window.dressUpCatalog[0] || {};
+
+  return cats
+    .map(c => c.key)
+    .filter(k => {
+      if (!catalog[k]) return false;
+
+      // Remove these categories only for base_2 / Pet 2
+      if (p === 1 && (k === "topUnderwear" || k === "onepieceUnderwear")) {
+        return false;
+      }
+
+      return true;
+    });
+}
 
   function normalizeState() {
     const sel = makeSelected();

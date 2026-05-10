@@ -92,7 +92,7 @@
     height: 100,
     dragging: false,
   };
-  sponge.img.src = "sponge.png";
+  sponge.img.src = "sponge1.png";
 
   // ==============================
   // Sound

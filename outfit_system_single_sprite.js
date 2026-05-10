@@ -64,7 +64,7 @@
   function fallbackDefaults() {
     return {
       0: { topUnderwear: "topunderwear1", bottomUnderwear: "bottomunderwear1", onepieceUnderwear: 0, top: 0, bottom: 0, dress: 0, shoes: 0, hat: 0 },
-      1: { topUnderwear: 0, bottomUnderwear: "boxers1_2", onepieceUnderwear: 0, top: 0, bottom: 0, dress: 0, shoes: 0, hat: 0 },
+      1: { topUnderwear: 0, bottomUnderwear: "bottomunderwear1_2", onepieceUnderwear: 0, top: 0, bottom: 0, dress: 0, shoes: 0, hat: 0 },
     };
   }
 

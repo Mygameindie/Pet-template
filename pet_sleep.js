@@ -50,9 +50,9 @@
   function loadBaseSet(suffix) {
     return {
       stand: createImg(`base${suffix}.png`),
-      fall: createImg(`base4${suffix}.png`),
-      fly0: createImg(`base2${suffix}.png`),
-      fly1: createImg(`base3${suffix}.png`),
+      fall: createImg(`base${suffix}.png`),
+      fly0: createImg(`base${suffix}.png`),
+      fly1: createImg(`base${suffix}.png`),
     };
   }
 
@@ -446,7 +446,7 @@
   }
 
   // === Energy restore ===
-  const ENERGY_PER_TICK = 3;
+  const ENERGY_PER_TICK = 10;
   const sleepInterval = setInterval(() => {
     if (!bed.sleeping) return;
     for (let i = 0; i < 2; i++) {

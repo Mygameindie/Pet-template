@@ -40,8 +40,8 @@
   }
 
   const baseSets = [
-    { stand: loadImg('base.png'),   fly0: loadImg('base2.png'),   fly1: loadImg('base3.png'),   fall: loadImg('base4.png') },
-    { stand: loadImg('base_2.png'), fly0: loadImg('base2_2.png'), fly1: loadImg('base3_2.png'), fall: loadImg('base4_2.png') },
+    { stand: loadImg('base.png'),   fly0: loadImg('base.png'),   fly1: loadImg('base.png'),   fall: loadImg('base.png') },
+    { stand: loadImg('base_2.png'), fly0: loadImg('base_2.png'), fly1: loadImg('base_2.png'), fall: loadImg('base_2.png') },
   ];
 
   function safeDraw(img, x, y, w, h) {

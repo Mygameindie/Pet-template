@@ -2,56 +2,92 @@
 // 🌱 pet_garden.js — Garden Mode
 // Plant seeds in dirt patches, water them to grow instantly,
 // harvest with scythe → food flies to bag → linked to feed mode inventory.
+// HD/Retina canvas enabled. Base image names: base.png, base_2.png
 // ===========================================================
 (function () {
   const canvas = document.getElementById('canvas');
   const ctx = canvas.getContext('2d');
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+
+  // ===== HD / RETINA CANVAS SETUP =====
+  let DPR = Math.max(1, window.devicePixelRatio || 1);
+
+  function resizeCanvasHD() {
+    DPR = Math.max(1, window.devicePixelRatio || 1);
+
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+
+    canvas.width = Math.floor(window.innerWidth * DPR);
+    canvas.height = Math.floor(window.innerHeight * DPR);
+
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+  }
+
+  resizeCanvasHD();
 
   // ===== LAYOUT CONSTANTS =====
-  const FENCE_Y_RATIO = 0.48;   // fence at 48% from top
+  const FENCE_Y_RATIO = 0.48;
 
-  function getFenceY() { return canvas.height * FENCE_Y_RATIO; }
+  function getCanvasW() {
+    return window.innerWidth;
+  }
+
+  function getCanvasH() {
+    return window.innerHeight;
+  }
+
+  function getFenceY() {
+    return getCanvasH() * FENCE_Y_RATIO;
+  }
 
   function getDirtPatches() {
-    const w = canvas.width;
+    const w = getCanvasW();
     const fenceY = getFenceY();
     const dirtTop = fenceY + 18;
-    const dirtH = Math.min(canvas.height * 0.28, 180);
+    const dirtH = Math.min(getCanvasH() * 0.28, 180);
     const patchW = Math.min(w * 0.24, 200);
+
     return [
-      { x: w * 0.08,            y: dirtTop, w: patchW, h: dirtH },
+      { x: w * 0.08, y: dirtTop, w: patchW, h: dirtH },
       { x: w * 0.5 - patchW / 2, y: dirtTop, w: patchW, h: dirtH },
-      { x: w * 0.92 - patchW,   y: dirtTop, w: patchW, h: dirtH },
+      { x: w * 0.92 - patchW, y: dirtTop, w: patchW, h: dirtH },
     ];
   }
 
-  // ===== PET IMAGES (locked, drawn above fence) =====
+  // ===== PET IMAGES =====
   function createImg(src) {
     const img = new Image();
     img._failed = false;
-    img.onerror = () => { img._failed = true; };
+    img.onerror = () => {
+      img._failed = true;
+    };
     img.src = src;
     return img;
   }
-  const petImgs = [createImg('base.png'), createImg('base_2.png')];
 
-  // ===== GROWTH TIMING (seconds) =====
+  const petImgs = [
+    createImg('base.png'),
+    createImg('base_2.png')
+  ];
+
+  // ===== GROWTH TIMING =====
   const SEC_GROWING = 7;
-  const SEC_READY   = 15;
+  const SEC_READY = 15;
 
-  // ===== GARDEN STATE (per-session + localStorage) =====
+  // ===== GARDEN STATE =====
   const GARDEN_KEY = 'purelilypet_garden';
-
-  // patches[0..2] = array of plant objects
   const patches = [[], [], []];
 
   function loadGardenState() {
     try {
       const raw = localStorage.getItem(GARDEN_KEY);
       if (!raw) return;
+
       const data = JSON.parse(raw);
+
       if (Array.isArray(data.patches)) {
         data.patches.forEach((p, i) => {
           if (Array.isArray(p) && patches[i]) {
@@ -66,7 +102,10 @@
     try {
       localStorage.setItem(GARDEN_KEY, JSON.stringify({
         patches: patches.map(p => p.map(pl => ({
-          crop: pl.crop, plantedAt: pl.plantedAt, stage: pl.stage, offX: pl.offX || 0,
+          crop: pl.crop,
+          plantedAt: pl.plantedAt,
+          stage: pl.stage,
+          offX: pl.offX || 0,
         }))),
       }));
     } catch {}
@@ -76,35 +115,44 @@
 
   function updateStages() {
     const now = Date.now();
+
     patches.forEach(patch => {
       patch.forEach(plant => {
         const elapsed = (now - plant.plantedAt) / 1000;
-        if (elapsed >= SEC_READY)   plant.stage = 'ready';
-        else if (elapsed >= SEC_GROWING) plant.stage = 'growing';
-        else plant.stage = 'seedling';
+
+        if (elapsed >= SEC_READY) {
+          plant.stage = 'ready';
+        } else if (elapsed >= SEC_GROWING) {
+          plant.stage = 'growing';
+        } else {
+          plant.stage = 'seedling';
+        }
       });
     });
   }
 
   // ===== CROPS CONFIG =====
   let crops = [];
-  const cropImgs = {}; // key → Image
+  const cropImgs = {};
 
   async function loadCrops() {
     const res = await fetch('garden_items.json', { cache: 'no-store' });
     if (!res.ok) throw new Error('garden_items.json not found');
+
     const cfg = await res.json();
     crops = cfg.crops || [];
+
     crops.forEach(c => {
       const img = new Image();
       img.src = c.seedImg;
       cropImgs[c.key] = img;
     });
+
     buildToolbar();
   }
 
   // ===== TOOL STATE =====
-  let selectedTool = 'plant'; // 'plant' | 'water' | 'scythe'
+  let selectedTool = 'plant';
   let selectedCrop = null;
 
   // ===== TOOLBAR DOM =====
@@ -112,8 +160,10 @@
 
   function buildToolbar() {
     if (toolbar) toolbar.remove();
+
     toolbar = document.createElement('div');
     toolbar.id = 'garden-toolbar';
+
     Object.assign(toolbar.style, {
       position: 'fixed',
       bottom: '70px',
@@ -131,45 +181,63 @@
       boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
     });
 
-    // Tool buttons
     [
-      { key: 'plant',  emoji: '🌱', label: 'Plant seed' },
-      { key: 'water',  emoji: '💧', label: 'Water (instant grow)' },
+      { key: 'plant', emoji: '🌱', label: 'Plant seed' },
+      { key: 'water', emoji: '💧', label: 'Water (instant grow)' },
       { key: 'scythe', emoji: '🌾', label: 'Harvest ready crops' },
     ].forEach(t => {
       const btn = document.createElement('button');
       btn.dataset.tool = t.key;
       btn.textContent = t.emoji;
       btn.title = t.label;
+
       applyToolStyle(btn, t.key === selectedTool);
+
       btn.addEventListener('click', () => {
         selectedTool = t.key;
         updateHighlights();
       });
+
       toolbar.appendChild(btn);
     });
 
-    // Divider
     const sep = document.createElement('div');
-    Object.assign(sep.style, { width: '1px', background: '#e5e7eb', margin: '0 4px', alignSelf: 'stretch' });
+    Object.assign(sep.style, {
+      width: '1px',
+      background: '#e5e7eb',
+      margin: '0 4px',
+      alignSelf: 'stretch',
+    });
     toolbar.appendChild(sep);
 
-    // Seed buttons
     crops.forEach(crop => {
       const btn = document.createElement('button');
       btn.dataset.crop = crop.key;
       btn.title = crop.label;
+
       const img = document.createElement('img');
       img.src = crop.seedImg;
-      Object.assign(img.style, { width: '28px', height: '28px', objectFit: 'contain', display: 'block' });
-      img.onerror = () => { btn.textContent = crop.label[0] || '?'; };
+
+      Object.assign(img.style, {
+        width: '28px',
+        height: '28px',
+        objectFit: 'contain',
+        display: 'block',
+      });
+
+      img.onerror = () => {
+        btn.textContent = crop.label[0] || '?';
+      };
+
       btn.appendChild(img);
       applyToolStyle(btn, false);
+
       btn.addEventListener('click', () => {
         selectedCrop = crop.key;
         selectedTool = 'plant';
         updateHighlights();
       });
+
       toolbar.appendChild(btn);
     });
 
@@ -178,6 +246,7 @@
     if (!selectedCrop && crops.length > 0) {
       selectedCrop = crops[0].key;
     }
+
     updateHighlights();
   }
 
@@ -195,11 +264,16 @@
 
   function updateHighlights() {
     if (!toolbar) return;
+
     toolbar.querySelectorAll('button[data-tool]').forEach(btn => {
       applyToolStyle(btn, btn.dataset.tool === selectedTool);
     });
+
     toolbar.querySelectorAll('button[data-crop]').forEach(btn => {
-      applyToolStyle(btn, btn.dataset.crop === selectedCrop && selectedTool === 'plant');
+      applyToolStyle(
+        btn,
+        btn.dataset.crop === selectedCrop && selectedTool === 'plant'
+      );
     });
   }
 
@@ -209,6 +283,7 @@
   function buildBag() {
     bagEl = document.createElement('div');
     bagEl.id = 'garden-bag';
+
     Object.assign(bagEl.style, {
       position: 'fixed',
       top: '10px',
@@ -221,14 +296,17 @@
       boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
       transition: 'transform 0.15s',
     });
+
     document.body.appendChild(bagEl);
     updateBagUI();
   }
 
   function updateBagUI() {
     if (!bagEl || !window.PetStats) return;
+
     const inv = window.PetStats.getInventory();
     const total = Object.values(inv).reduce((a, b) => a + b, 0);
+
     bagEl.textContent = '🎒 ' + total;
   }
 
@@ -236,6 +314,7 @@
   function flyToBag(screenX, screenY, cropKey, onDone) {
     const el = document.createElement('div');
     el.textContent = '🍬';
+
     Object.assign(el.style, {
       position: 'fixed',
       fontSize: '22px',
@@ -244,9 +323,18 @@
       zIndex: '99999',
       pointerEvents: 'none',
     });
+
     document.body.appendChild(el);
 
-    const bagRect = bagEl ? bagEl.getBoundingClientRect() : { left: window.innerWidth - 80, top: 10, width: 60, height: 30 };
+    const bagRect = bagEl
+      ? bagEl.getBoundingClientRect()
+      : {
+          left: window.innerWidth - 80,
+          top: 10,
+          width: 60,
+          height: 30,
+        };
+
     const tx = bagRect.left + bagRect.width / 2;
     const ty = bagRect.top + bagRect.height / 2;
 
@@ -257,18 +345,26 @@
         top: ty + 'px',
         opacity: '0',
       });
+
       setTimeout(() => {
         el.remove();
+
         if (window.PetStats) {
           window.PetStats.addInventory(cropKey, 2);
           updateBagUI();
-          if (typeof window._refreshFeedToolbar === 'function') window._refreshFeedToolbar();
+
+          if (typeof window._refreshFeedToolbar === 'function') {
+            window._refreshFeedToolbar();
+          }
         }
-        // Shake bag
+
         if (bagEl) {
           bagEl.style.transform = 'scale(1.35)';
-          setTimeout(() => { if (bagEl) bagEl.style.transform = ''; }, 180);
+          setTimeout(() => {
+            if (bagEl) bagEl.style.transform = '';
+          }, 180);
         }
+
         if (onDone) onDone();
       }, 580);
     });
@@ -278,10 +374,16 @@
   function canvasPos(e) {
     const r = canvas.getBoundingClientRect();
     const src = e.touches ? e.touches[0] : e;
-    return { x: src.clientX - r.left, y: src.clientY - r.top, screenX: src.clientX, screenY: src.clientY };
+
+    return {
+      x: src.clientX - r.left,
+      y: src.clientY - r.top,
+      screenX: src.clientX,
+      screenY: src.clientY,
+    };
   }
 
-  let dragPos = null; // current pointer position while pressed
+  let dragPos = null;
 
   function onDown(e) {
     const p = canvasPos(e);
@@ -291,20 +393,28 @@
 
   function onMove(e) {
     if (!dragPos) return;
+
     dragPos = canvasPos(e);
+
     if (e.touches) e.preventDefault();
   }
 
-  function onUp(e) {
+  function onUp() {
     if (!dragPos) return;
+
     const p = dragPos;
     dragPos = null;
+
     handleAction(p);
   }
 
   function pointInPatch(p, patch) {
-    return p.x >= patch.x && p.x <= patch.x + patch.w &&
-           p.y >= patch.y && p.y <= patch.y + patch.h;
+    return (
+      p.x >= patch.x &&
+      p.x <= patch.x + patch.w &&
+      p.y >= patch.y &&
+      p.y <= patch.y + patch.h
+    );
   }
 
   function handleAction(p) {
@@ -312,6 +422,7 @@
 
     for (let i = 0; i < dirtPatches.length; i++) {
       const patch = dirtPatches[i];
+
       if (!pointInPatch(p, patch)) continue;
 
       if (selectedTool === 'plant' && selectedCrop) {
@@ -321,6 +432,7 @@
           stage: 'seedling',
           offX: (Math.random() - 0.5) * (patch.w * 0.55),
         });
+
         saveGardenState();
 
       } else if (selectedTool === 'water') {
@@ -328,13 +440,16 @@
           plant.stage = 'ready';
           plant.plantedAt = Date.now() - SEC_READY * 1000;
         });
+
         saveGardenState();
 
       } else if (selectedTool === 'scythe') {
         const ready = patches[i].filter(pl => pl.stage === 'ready');
+
         if (ready.length === 0) break;
 
         const canvasRect = canvas.getBoundingClientRect();
+
         ready.forEach((plant, idx) => {
           const plantCanvasX = patch.x + patch.w / 2 + (plant.offX || 0);
           const plantCanvasY = patch.y + patch.h * 0.35;
@@ -349,6 +464,7 @@
         patches[i] = patches[i].filter(pl => pl.stage !== 'ready');
         saveGardenState();
       }
+
       break;
     }
   }
@@ -376,8 +492,8 @@
   }
 
   function drawScene() {
-    const w = canvas.width;
-    const h = canvas.height;
+    const w = getCanvasW();
+    const h = getCanvasH();
     const fenceY = getFenceY();
     const dirtPatches = getDirtPatches();
 
@@ -388,7 +504,7 @@
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, w, fenceY);
 
-    // Grass below fence
+    // Grass
     ctx.fillStyle = '#86efac';
     ctx.fillRect(0, fenceY, w, h - fenceY);
 
@@ -407,60 +523,77 @@
       ctx.fill();
     });
 
-    // Pets behind fence (smaller, above fence)
+    // Pets behind fence
     drawLockedPets(fenceY);
 
-    // Fence (drawn on top of sky/grass, in front of pets)
+    // Fence
     drawFence(w, fenceY);
 
-    // Plants on dirt
+    // Plants
     drawPlants(dirtPatches);
 
-    // Tool cursor while dragging
+    // Tool cursor
     if (dragPos) drawToolCursor(dragPos.x, dragPos.y);
   }
 
   function drawFence(w, fenceY) {
-    // Posts
     const postW = 10;
     const postSpacing = 55;
     const postTop = fenceY - 28;
     const postH = 70;
+
     ctx.fillStyle = '#b45309';
+
     for (let x = 5; x < w; x += postSpacing) {
       roundRect(x, postTop, postW, postH, 3);
       ctx.fill();
     }
-    // Rails
+
     ctx.fillStyle = '#d97706';
     ctx.fillRect(0, fenceY - 14, w, 10);
     ctx.fillRect(0, fenceY + 16, w, 10);
   }
 
   function drawLockedPets(fenceY) {
-    const petH = Math.min(canvas.height * 0.28, 210);
+    const petH = Math.min(getCanvasH() * 0.28, 210);
     const petW = petH * (400 / 450);
     const petY = fenceY - petH - 10;
 
     [
-      { x: canvas.width * 0.22 - petW / 2, idx: 0, filter: 'none' },
-      { x: canvas.width * 0.78 - petW / 2, idx: 1, filter: 'hue-rotate(140deg) saturate(1.2)' },
+      {
+        x: getCanvasW() * 0.22 - petW / 2,
+        idx: 0,
+        filter: 'none',
+      },
+      {
+        x: getCanvasW() * 0.78 - petW / 2,
+        idx: 1,
+        filter: 'hue-rotate(140deg) saturate(1.2)',
+      },
     ].forEach(({ x, idx, filter }) => {
       let img = petImgs[idx];
       let useFilter = filter;
 
       if (!img || img._failed || !img.complete || img.naturalWidth === 0) {
         img = petImgs[0];
-        useFilter = idx === 1 ? 'hue-rotate(140deg) saturate(1.2)' : 'none';
+        useFilter = idx === 1
+          ? 'hue-rotate(140deg) saturate(1.2)'
+          : 'none';
       }
 
       if (img && img.complete && img.naturalWidth > 0 && !img._failed) {
         ctx.save();
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
         ctx.filter = useFilter;
+
         ctx.drawImage(img, x, petY, petW, petH);
+
         if (typeof window.drawOutfitOverlay === 'function') {
           window.drawOutfitOverlay(ctx, 'stand', x, petY, petW, petH, idx);
         }
+
         ctx.restore();
       }
     });
@@ -478,8 +611,13 @@
         let emoji = '🌱';
         let size = 20;
 
-        if (plant.stage === 'growing') { emoji = '🌿'; size = 28; }
-        else if (plant.stage === 'ready') { emoji = '🌻'; size = 36; }
+        if (plant.stage === 'growing') {
+          emoji = '🌿';
+          size = 28;
+        } else if (plant.stage === 'ready') {
+          emoji = '🌻';
+          size = 36;
+        }
 
         if (plant.stage === 'ready') {
           ctx.save();
@@ -490,9 +628,9 @@
         ctx.font = size + 'px serif';
         ctx.fillText(emoji, px, py);
 
-        // Show a small food image above the plant when ready
         if (plant.stage === 'ready' && cropImgs[plant.crop]) {
           const fi = cropImgs[plant.crop];
+
           if (fi && fi.complete && fi.naturalWidth > 0) {
             ctx.drawImage(fi, px - 14, py - size - 20, 28, 28);
           }
@@ -505,8 +643,13 @@
 
   function drawToolCursor(x, y) {
     let emoji = '🌱';
-    if (selectedTool === 'water') emoji = '💧';
-    else if (selectedTool === 'scythe') emoji = '🌾';
+
+    if (selectedTool === 'water') {
+      emoji = '💧';
+    } else if (selectedTool === 'scythe') {
+      emoji = '🌾';
+    }
+
     ctx.font = '28px serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -515,15 +658,16 @@
 
   // ===== RESIZE =====
   function onResize() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    resizeCanvasHD();
   }
+
   window.addEventListener('resize', onResize);
 
   // ===== MAIN LOOP =====
   let raf = 0;
+
   function loop() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, getCanvasW(), getCanvasH());
     updateStages();
     drawScene();
     raf = requestAnimationFrame(loop);
@@ -536,26 +680,40 @@
   window._modeName = 'garden';
 
   buildBag();
+
   loadCrops().catch(err => {
     console.error(err);
-    buildToolbar(); // build with empty crops array
+    buildToolbar();
   });
+
   loop();
 
   // ===== CLEANUP =====
   window._modeCleanup = function () {
     cancelAnimationFrame(raf);
     clearInterval(saveInterval);
+
     canvas.removeEventListener('mousedown', onDown);
     canvas.removeEventListener('mousemove', onMove);
     canvas.removeEventListener('mouseup', onUp);
     canvas.removeEventListener('touchstart', onDown);
     canvas.removeEventListener('touchmove', onMove);
     canvas.removeEventListener('touchend', onUp);
+
     window.removeEventListener('resize', onResize);
+
     window._gardenMode = false;
+
     saveGardenState();
-    if (toolbar) { toolbar.remove(); toolbar = null; }
-    if (bagEl) { bagEl.remove(); bagEl = null; }
+
+    if (toolbar) {
+      toolbar.remove();
+      toolbar = null;
+    }
+
+    if (bagEl) {
+      bagEl.remove();
+      bagEl = null;
+    }
   };
 })();

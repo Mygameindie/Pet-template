@@ -29,9 +29,9 @@
   function loadBaseSet(suffix) {
     return {
       stand: createImg(`base${suffix}.png`),
-      fall: createImg(`base4${suffix}.png`),
-      fly0: createImg(`base2${suffix}.png`),
-      fly1: createImg(`base3${suffix}.png`),
+      fall: createImg(`base${suffix}.png`),
+      fly0: createImg(`base${suffix}.png`),
+      fly1: createImg(`base${suffix}.png`),
       _suffix: suffix,
     };
   }
@@ -74,6 +74,7 @@
     return p;
   }
 
+  
   const pets = [
     makePet(canvas.width * 0.35, 0),
     makePet(canvas.width * 0.65, 1),

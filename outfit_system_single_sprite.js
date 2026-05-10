@@ -4,6 +4,7 @@
 // - Pet 2 is boy: bottom underwear / boxers only.
 // - Girl one-piece clears top/bottom underwear.
 // - Girl top/bottom underwear clears one-piece and auto-pairs the matching set number.
+// - Dress clears top + bottom; top or bottom clears dress.
 (() => {
   const CAT_FILE = "dressup_categories.json";
   const DEFAULT_FILE = "dressup_defaults.json";
@@ -21,6 +22,7 @@
     { key: "onepieceUnderwear", label: "One-Piece Underwear", z: 65, file: "dressup_onepiece_underwear.json" },
     { key: "top", label: "Top", z: 120, file: "dressup_top.json" },
     { key: "bottom", label: "Pants / Skirt", z: 110, file: "dressup_bottom.json" },
+    { key: "dress", label: "Dress", z: 130, file: "dressup_dress.json" },
     { key: "shoes", label: "Shoes", z: 90, file: "dressup_shoes.json" },
     { key: "hat", label: "Hat", z: 180, file: "dressup_hat.json" },
   ];
@@ -61,8 +63,8 @@
 
   function fallbackDefaults() {
     return {
-      0: { topUnderwear: "topunderwear1", bottomUnderwear: "bottomunderwear1", onepieceUnderwear: 0, top: 0, bottom: 0, shoes: 0, hat: 0 },
-      1: { topUnderwear: 0, bottomUnderwear: "boxers1_2", onepieceUnderwear: 0, top: 0, bottom: 0, shoes: 0, hat: 0 },
+      0: { topUnderwear: "topunderwear1", bottomUnderwear: "bottomunderwear1", onepieceUnderwear: 0, top: 0, bottom: 0, dress: 0, shoes: 0, hat: 0 },
+      1: { topUnderwear: 0, bottomUnderwear: "boxers1_2", onepieceUnderwear: 0, top: 0, bottom: 0, dress: 0, shoes: 0, hat: 0 },
     };
   }
 
@@ -79,6 +81,7 @@
     add(0, "top", "top1", "Top 1");
     add(0, "bottom", "pants1", "Pants 1");
     add(0, "bottom", "skirt1", "Skirt 1");
+    add(0, "dress", "dress1", "Dress 1");
     add(0, "shoes", "shoes1", "Shoes 1");
     add(0, "hat", "hat1", "Hat 1");
     add(1, "bottomUnderwear", "bottomunderwear1_2", "Bottom Underwear 1");
@@ -86,6 +89,7 @@
     add(1, "top", "top1_2", "Top 1");
     add(1, "bottom", "pants1_2", "Pants 1");
     add(1, "bottom", "skirt1_2", "Skirt 1");
+    add(1, "dress", "dress1_2", "Dress 1");
     add(1, "shoes", "shoes1_2", "Shoes 1");
     add(1, "hat", "hat1_2", "Hat 1");
     return catalog;
@@ -202,6 +206,25 @@
       if (topMatch) window.selectedClothes[p].topUnderwear = topMatch;
       if (bottomMatch) window.selectedClothes[p].bottomUnderwear = bottomMatch;
     }
+  }
+
+  function applyDressRules(p, category, id) {
+    if (id === 0 || id === "0") return;
+
+    if (category === "dress") {
+      window.selectedClothes[p].top = 0;
+      window.selectedClothes[p].bottom = 0;
+      return;
+    }
+
+    if (category === "top" || category === "bottom") {
+      window.selectedClothes[p].dress = 0;
+    }
+  }
+
+  function applyClothingRules(p, category, id) {
+    applyUnderwearRules(p, category, id);
+    applyDressRules(p, category, id);
   }
 
   const tintCache = new Map();
@@ -324,7 +347,7 @@
       if (active) b.style.cssText += "background:rgba(0,0,0,.22);font-weight:700;";
       b.onclick = () => {
         window.selectedClothes[p][selectedCategory] = id === "0" ? 0 : id;
-        applyUnderwearRules(p, selectedCategory, window.selectedClothes[p][selectedCategory]);
+        applyClothingRules(p, selectedCategory, window.selectedClothes[p][selectedCategory]);
         renderPanel();
         updateButtonLabel();
       };
@@ -353,7 +376,7 @@
     panel.appendChild(colorRow);
 
     const note = document.createElement("div");
-    note.textContent = "Girl: one-piece clears top/bottom underwear; choosing top/bottom auto-pairs the matching set number.";
+    note.textContent = "Girl: one-piece clears top/bottom underwear; choosing top/bottom auto-pairs the matching set number. Dress clears top + pants/skirt; choosing top or pants/skirt clears dress.";
     note.style.cssText = "font-size:11px;opacity:.65;margin-top:8px;";
     panel.appendChild(note);
     updateButtonLabel();

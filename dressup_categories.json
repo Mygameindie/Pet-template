@@ -4,6 +4,7 @@
   { "key": "onepieceUnderwear", "label": "One-Piece Underwear", "z": 65, "file": "dressup_onepiece_underwear.json" },
   { "key": "top", "label": "Top", "z": 120, "file": "dressup_top.json" },
   { "key": "bottom", "label": "Pants / Skirt", "z": 110, "file": "dressup_bottom.json" },
+  { "key": "dress", "label": "Dress", "z": 130, "file": "dressup_dress.json" },
   { "key": "shoes", "label": "Shoes", "z": 90, "file": "dressup_shoes.json" },
   { "key": "hat", "label": "Hat", "z": 180, "file": "dressup_hat.json" }
 ]

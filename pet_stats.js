@@ -5,7 +5,7 @@
 // ===========================================================
 (() => {
   const SAVE_KEY = "purelilypet_save";
-  const NUM_PETS = 2;
+  const NUM_PETS = 3;
 
   // Stat decay rates (points lost per second)
   const DECAY = {
@@ -47,7 +47,8 @@
 
   // Restore outfits if saved
   if (saved && Array.isArray(saved.outfits)) {
-    window.currentOutfits = saved.outfits.slice();
+    window.currentOutfits = saved.outfits.slice(0, NUM_PETS);
+    while (window.currentOutfits.length < NUM_PETS) window.currentOutfits.push(0);
     if (typeof window.currentOutfits[0] === "number") {
       window.currentOutfit = window.currentOutfits[0];
     }
@@ -95,9 +96,12 @@
 
   // --- Save periodically ---
   function doSave() {
+    const outfits = Array.isArray(window.currentOutfits) ? window.currentOutfits.slice(0, NUM_PETS) : [];
+    while (outfits.length < NUM_PETS) outfits.push(0);
+
     writeSave({
       pets: petStats.map(s => ({ ...s })),
-      outfits: Array.isArray(window.currentOutfits) ? window.currentOutfits.slice() : [0, 0],
+      outfits,
       muted,
       gardenInventory: { ...gardenInventory },
       savedAt: Date.now(),
@@ -194,16 +198,21 @@
     }
   }
 
+  function safePetIndex(petIdx) {
+    const i = (typeof petIdx === "number") ? petIdx : 0;
+    return Math.max(0, Math.min(NUM_PETS - 1, Math.floor(i)));
+  }
+
   // --- Global API ---
   window.PetStats = {
     // Get stats for a pet
     get(petIdx) {
-      return { ...petStats[petIdx || 0] };
+      return { ...petStats[safePetIndex(petIdx)] };
     },
 
     // Feed a pet (called from feed mode)
     feed(petIdx, liked) {
-      const i = (typeof petIdx === "number") ? petIdx : 0;
+      const i = safePetIndex(petIdx);
       const s = petStats[i];
       if (liked) {
         s.hunger = clamp(s.hunger + 20);
@@ -217,7 +226,7 @@
 
     // Feed special types
     feedSpecial(petIdx, type) {
-      const i = (typeof petIdx === "number") ? petIdx : 0;
+      const i = safePetIndex(petIdx);
       const s = petStats[i];
       s.hunger = clamp(s.hunger + 12);
       if (type === "ice") s.happiness = clamp(s.happiness + 3);
@@ -227,7 +236,7 @@
 
     // Shower a pet (called from shower mode)
     shower(petIdx) {
-      const i = (typeof petIdx === "number") ? petIdx : 0;
+      const i = safePetIndex(petIdx);
       petStats[i].cleanliness = clamp(petStats[i].cleanliness + 8);
       doSave();
     },
@@ -235,7 +244,7 @@
     // Sleep a pet (called from sleep mode)
     // amount defaults to 15 for the initial tuck-in; sleep loop passes smaller ticks
     sleep(petIdx, amount) {
-      const i = (typeof petIdx === "number") ? petIdx : 0;
+      const i = safePetIndex(petIdx);
       const gain = (typeof amount === "number") ? amount : 15;
       petStats[i].energy = clamp(petStats[i].energy + gain);
       doSave();
@@ -243,20 +252,20 @@
 
     // Troll a pet (called from troll mode)
     troll(petIdx) {
-      const i = (typeof petIdx === "number") ? petIdx : 0;
+      const i = safePetIndex(petIdx);
       petStats[i].happiness = clamp(petStats[i].happiness - 8);
       doSave();
     },
 
     // Play/drag boosts happiness slightly
     play(petIdx) {
-      const i = (typeof petIdx === "number") ? petIdx : 0;
+      const i = safePetIndex(petIdx);
       petStats[i].happiness = clamp(petStats[i].happiness + 2);
     },
 
     // Karaoke boosts happiness
     karaoke(petIdx) {
-      const i = (typeof petIdx === "number") ? petIdx : 0;
+      const i = safePetIndex(petIdx);
       petStats[i].happiness = clamp(petStats[i].happiness + 10);
       petStats[i].energy = clamp(petStats[i].energy - 5);
       doSave();
@@ -264,7 +273,7 @@
 
     // Doctor: heal a sick pet (restores all stats)
     heal(petIdx) {
-      const i = (typeof petIdx === "number") ? petIdx : 0;
+      const i = safePetIndex(petIdx);
       const s = petStats[i];
       s.hunger = clamp(s.hunger + 30);
       s.happiness = clamp(s.happiness + 25);
@@ -275,7 +284,7 @@
 
     // Playground: playing boosts happiness and energy slightly
     playground(petIdx) {
-      const i = (typeof petIdx === "number") ? petIdx : 0;
+      const i = safePetIndex(petIdx);
       const s = petStats[i];
       s.happiness = clamp(s.happiness + 4);
       s.energy = clamp(s.energy - 2);

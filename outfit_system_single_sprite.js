@@ -1,11 +1,14 @@
 // Split-JSON dress-up system. One image per item: {prefix}.png
 // Branch 3 logic:
+// - Supports 3 pets.
 // - Pet 1 is girl: top underwear + bottom underwear, or one-piece underwear.
-// - Pet 2 is boy: bottom underwear / boxers only.
+// - Pet 2 and Pet 3 are boy-style by default: bottom underwear / boxers only.
 // - Girl one-piece clears top/bottom underwear.
 // - Girl top/bottom underwear clears one-piece and auto-pairs the matching set number.
 // - Dress clears top + bottom; top or bottom clears dress.
 (() => {
+  const NUM_PETS = 3;
+  const PETS = Array.from({ length: NUM_PETS }, (_, i) => i);
   const CAT_FILE = "dressup_categories.json";
   const DEFAULT_FILE = "dressup_defaults.json";
   const DEFAULT_COLOR = "Original";
@@ -65,16 +68,22 @@
     return {
       0: { topUnderwear: "topunderwear1", bottomUnderwear: "bottomunderwear1", onepieceUnderwear: 0, top: 0, bottom: 0, dress: 0, shoes: 0, hat: 0 },
       1: { topUnderwear: 0, bottomUnderwear: "bottomunderwear1_2", onepieceUnderwear: 0, top: 0, bottom: 0, dress: 0, shoes: 0, hat: 0 },
+      2: { topUnderwear: 0, bottomUnderwear: "bottomunderwear1_2", onepieceUnderwear: 0, top: 0, bottom: 0, dress: 0, shoes: 0, hat: 0 },
     };
   }
 
   function fallbackCatalog(cats) {
-    const catalog = { 0: {}, 1: {} };
-    [0, 1].forEach(p => cats.forEach(c => catalog[p][c.key] = emptyCat(c)));
-    const add = (p, cat, id, label) => {
-      if (!catalog[p][cat]) return;
-      catalog[p][cat].items[id] = { id, label, img: img(`${id}.png`) };
+    const catalog = {};
+    PETS.forEach(p => {
+      catalog[p] = {};
+      cats.forEach(c => catalog[p][c.key] = emptyCat(c));
+    });
+
+    const add = (p, cat, id, label, prefix = id) => {
+      if (!catalog[p]?.[cat]) return;
+      catalog[p][cat].items[id] = { id, label, img: img(`${prefix}.png`) };
     };
+
     add(0, "topUnderwear", "topunderwear1", "Top Underwear 1");
     add(0, "bottomUnderwear", "bottomunderwear1", "Bottom Underwear 1");
     add(0, "onepieceUnderwear", "onepieceunderwear1", "One-Piece Underwear 1");
@@ -84,14 +93,18 @@
     add(0, "dress", "dress1", "Dress 1");
     add(0, "shoes", "shoes1", "Shoes 1");
     add(0, "hat", "hat1", "Hat 1");
-    add(1, "bottomUnderwear", "bottomunderwear1_2", "Bottom Underwear 1");
-    add(1, "bottomUnderwear", "boxers1_2", "Boxers 1");
-    add(1, "top", "top1_2", "Top 1");
-    add(1, "bottom", "pants1_2", "Pants 1");
-    add(1, "bottom", "skirt1_2", "Skirt 1");
-    add(1, "dress", "dress1_2", "Dress 1");
-    add(1, "shoes", "shoes1_2", "Shoes 1");
-    add(1, "hat", "hat1_2", "Hat 1");
+
+    [1, 2].forEach(p => {
+      add(p, "bottomUnderwear", "bottomunderwear1_2", "Bottom Underwear 1", "bottomunderwear1_2");
+      add(p, "bottomUnderwear", "boxers1_2", "Boxers 1", "boxers1_2");
+      add(p, "top", "top1_2", "Top 1", "top1_2");
+      add(p, "bottom", "pants1_2", "Pants 1", "pants1_2");
+      add(p, "bottom", "skirt1_2", "Skirt 1", "skirt1_2");
+      add(p, "dress", "dress1_2", "Dress 1", "dress1_2");
+      add(p, "shoes", "shoes1_2", "Shoes 1", "shoes1_2");
+      add(p, "hat", "hat1_2", "Hat 1", "hat1_2");
+    });
+
     return catalog;
   }
 
@@ -100,9 +113,13 @@
   window.dressUpCatalog = fallbackCatalog(cats);
   if (typeof window.activePetIndex !== "number") window.activePetIndex = 0;
 
+  function defaultForPet(p) {
+    return defaults[p] || defaults[String(p)] || (p === 2 ? defaults[1] || defaults[String(1)] : {}) || {};
+  }
+
   function makeSelected() {
-    return [0, 1].map(p => {
-      const d = defaults[p] || defaults[String(p)] || {};
+    return PETS.map(p => {
+      const d = defaultForPet(p);
       const o = {};
       cats.forEach(c => o[c.key] = d[c.key] ?? 0);
       return o;
@@ -110,7 +127,7 @@
   }
 
   function makeColors() {
-    return [0, 1].map(() => {
+    return PETS.map(() => {
       const o = {};
       cats.forEach(c => o[c.key] = DEFAULT_COLOR);
       return o;
@@ -119,35 +136,36 @@
 
   window.selectedClothes = window.selectedClothes || makeSelected();
   window.clothingColors = window.clothingColors || makeColors();
-  window.currentOutfits = [0, 0];
+  window.currentOutfits = Array.isArray(window.currentOutfits) ? window.currentOutfits.slice(0, NUM_PETS) : [0, 0, 0];
+  while (window.currentOutfits.length < NUM_PETS) window.currentOutfits.push(0);
   window.currentOutfit = 0;
 
   function activePet() {
     const n = Number(window.activePetIndex);
-    return Number.isFinite(n) ? Math.max(0, Math.min(1, Math.floor(n))) : 0;
+    return Number.isFinite(n) ? Math.max(0, Math.min(NUM_PETS - 1, Math.floor(n))) : 0;
   }
 
   function catKeys(p = activePet()) {
-  const catalog = window.dressUpCatalog[p] || window.dressUpCatalog[0] || {};
+    const catalog = window.dressUpCatalog[p] || window.dressUpCatalog[0] || {};
 
-  return cats
-    .map(c => c.key)
-    .filter(k => {
-      if (!catalog[k]) return false;
+    return cats
+      .map(c => c.key)
+      .filter(k => {
+        if (!catalog[k]) return false;
 
-      // Remove these categories only for base_2 / Pet 2
-      if (p === 1 && (k === "topUnderwear" || k === "onepieceUnderwear")) {
-        return false;
-      }
+        // Remove these categories for Pet 2 and Pet 3 boy-style defaults.
+        if (p !== 0 && (k === "topUnderwear" || k === "onepieceUnderwear")) {
+          return false;
+        }
 
-      return true;
-    });
-}
+        return true;
+      });
+  }
 
   function normalizeState() {
     const sel = makeSelected();
     const cols = makeColors();
-    [0, 1].forEach(p => {
+    PETS.forEach(p => {
       window.selectedClothes[p] = window.selectedClothes[p] || {};
       window.clothingColors[p] = window.clothingColors[p] || {};
       cats.forEach(c => {
@@ -162,14 +180,18 @@
     if (!Array.isArray(cats) || !cats.length) cats = FALLBACK_CATS;
     defaults = await getJson(DEFAULT_FILE, fallbackDefaults());
 
-    const catalog = { 0: {}, 1: {} };
-    [0, 1].forEach(p => cats.forEach(c => catalog[p][c.key] = emptyCat(c)));
+    const catalog = {};
+    PETS.forEach(p => {
+      catalog[p] = {};
+      cats.forEach(c => catalog[p][c.key] = emptyCat(c));
+    });
 
     await Promise.all(cats.map(async c => {
       if (!c.file) return;
       const data = await getJson(c.file, {});
-      [0, 1].forEach(p => {
-        const list = data[p] || data[String(p)] || [];
+      PETS.forEach(p => {
+        // Pet 3 can use explicit "2" entries; otherwise reuse Pet 2 clothing assets.
+        const list = data[p] || data[String(p)] || (p === 2 ? data[1] || data[String(1)] : []) || [];
         if (!Array.isArray(list)) return;
         list.forEach(raw => {
           const it = itemFrom(raw);
@@ -388,7 +410,7 @@
     panel.appendChild(colorRow);
 
     const note = document.createElement("div");
-    note.textContent = "Girl: one-piece clears top/bottom underwear; choosing top/bottom auto-pairs the matching set number. Dress clears top + pants/skirt; choosing top or pants/skirt clears dress.";
+    note.textContent = "Pet 1: one-piece clears top/bottom underwear; choosing top/bottom auto-pairs the matching set number. Dress clears top + pants/skirt; choosing top or pants/skirt clears dress.";
     note.style.cssText = "font-size:11px;opacity:.65;margin-top:8px;";
     panel.appendChild(note);
     updateButtonLabel();
@@ -402,7 +424,7 @@
 
   window.drawOutfitOverlay = function (ctx, state, x, y, w, h, petIndex) {
     if (window._modeName === "shower") return false;
-    const p = typeof petIndex === "number" ? petIndex : activePet();
+    const p = typeof petIndex === "number" ? Math.max(0, Math.min(NUM_PETS - 1, Math.floor(petIndex))) : activePet();
     const catalog = window.dressUpCatalog[p] || window.dressUpCatalog[0] || {};
     let drew = false;
     catKeys(p).sort((a, b) => (catalog[a].z || 0) - (catalog[b].z || 0)).forEach(k => {
@@ -443,7 +465,7 @@
   window.setActivePet = function (idx) {
     const n = Number(idx);
     if (!Number.isFinite(n)) return;
-    window.activePetIndex = Math.max(0, Math.min(1, Math.floor(n)));
+    window.activePetIndex = Math.max(0, Math.min(NUM_PETS - 1, Math.floor(n)));
     renderPanel();
     updateButtonLabel();
   };

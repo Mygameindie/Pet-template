@@ -84,7 +84,6 @@
       s.hunger = clamp(s.hunger - DECAY.hunger * dt);
       s.happiness = clamp(s.happiness - DECAY.happiness * dt);
       s.cleanliness = clamp(s.cleanliness - DECAY.cleanliness * dt);
-      // Don't drain energy while pet is sleeping
       if (!isSleeping) {
         s.energy = clamp(s.energy - DECAY.energy * dt);
       }
@@ -112,11 +111,8 @@
     document.body.appendChild(statsEl);
   }
 
-  // Build the stats panel HTML
-  // Styling is handled by pet_style.css (#pet-stats-panel, .stats-card, #mute-btn)
   function buildStatsUI() {
     statsEl.innerHTML = "";
-    // No inline styles - CSS handles positioning and responsiveness
 
     for (let i = 0; i < NUM_PETS; i++) {
       const card = document.createElement("div");
@@ -133,7 +129,6 @@
       statsEl.appendChild(card);
     }
 
-    // Mute button
     const muteBtn = document.createElement("button");
     muteBtn.id = "mute-btn";
     muteBtn.textContent = muted ? "🔇" : "🔊";
@@ -175,14 +170,11 @@
     }
   }
 
-  // --- Mute system ---
   function applyMute() {
-    // Patch SoundManager to respect mute
     if (window.SoundManager) {
       window.SoundManager._muted = muted;
     }
 
-    // Override Audio.prototype.play when muted
     if (!Audio.prototype._origPlay) {
       Audio.prototype._origPlay = Audio.prototype.play;
       Audio.prototype.play = function () {
@@ -194,14 +186,11 @@
     }
   }
 
-  // --- Global API ---
   window.PetStats = {
-    // Get stats for a pet
     get(petIdx) {
       return { ...petStats[petIdx || 0] };
     },
 
-    // Feed a pet (called from feed mode)
     feed(petIdx, liked) {
       const i = (typeof petIdx === "number") ? petIdx : 0;
       const s = petStats[i];
@@ -215,7 +204,6 @@
       doSave();
     },
 
-    // Feed special types
     feedSpecial(petIdx, type) {
       const i = (typeof petIdx === "number") ? petIdx : 0;
       const s = petStats[i];
@@ -225,15 +213,18 @@
       doSave();
     },
 
-    // Shower a pet (called from shower mode)
     shower(petIdx) {
       const i = (typeof petIdx === "number") ? petIdx : 0;
       petStats[i].cleanliness = clamp(petStats[i].cleanliness + 8);
       doSave();
     },
 
-    // Sleep a pet (called from sleep mode)
-    // amount defaults to 15 for the initial tuck-in; sleep loop passes smaller ticks
+    sprayClean(petIdx) {
+      const i = (typeof petIdx === "number") ? petIdx : 0;
+      petStats[i].cleanliness = clamp(petStats[i].cleanliness + 1);
+      doSave();
+    },
+
     sleep(petIdx, amount) {
       const i = (typeof petIdx === "number") ? petIdx : 0;
       const gain = (typeof amount === "number") ? amount : 15;
@@ -241,20 +232,17 @@
       doSave();
     },
 
-    // Troll a pet (called from troll mode)
     troll(petIdx) {
       const i = (typeof petIdx === "number") ? petIdx : 0;
       petStats[i].happiness = clamp(petStats[i].happiness - 8);
       doSave();
     },
 
-    // Play/drag boosts happiness slightly
     play(petIdx) {
       const i = (typeof petIdx === "number") ? petIdx : 0;
       petStats[i].happiness = clamp(petStats[i].happiness + 2);
     },
 
-    // Karaoke boosts happiness
     karaoke(petIdx) {
       const i = (typeof petIdx === "number") ? petIdx : 0;
       petStats[i].happiness = clamp(petStats[i].happiness + 10);
@@ -262,7 +250,6 @@
       doSave();
     },
 
-    // Doctor: heal a sick pet (restores all stats)
     heal(petIdx) {
       const i = (typeof petIdx === "number") ? petIdx : 0;
       const s = petStats[i];
@@ -273,7 +260,6 @@
       doSave();
     },
 
-    // Playground: playing boosts happiness and energy slightly
     playground(petIdx) {
       const i = (typeof petIdx === "number") ? petIdx : 0;
       const s = petStats[i];
@@ -282,12 +268,10 @@
       doSave();
     },
 
-    // Check if muted
     isMuted() {
       return muted;
     },
 
-    // Garden inventory helpers
     getInventory(key) {
       if (key === undefined) return { ...gardenInventory };
       return gardenInventory[key] !== undefined ? gardenInventory[key] : 0;
@@ -303,21 +287,14 @@
       return true;
     },
 
-    // Force save
     save() { doSave(); },
   };
 
-  // --- Start ---
   buildStatsUI();
   updateUI();
   applyMute();
 
-  // Tick every 500ms for smooth decay
   setInterval(tick, 500);
-
-  // Auto-save every 10 seconds
   setInterval(doSave, 10000);
-
-  // Save on page unload
   window.addEventListener("beforeunload", doSave);
 })();

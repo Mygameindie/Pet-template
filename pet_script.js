@@ -9,6 +9,7 @@
 
   const groundHeight = 100;
   let groundY = canvas.height - groundHeight;
+  const NUM_PETS = 3;
 
   // ===========================================================
   // 🖼️ Images
@@ -24,8 +25,8 @@
 
   // Per-pet base sets.
   // Convention: if you add another pet's art, name it:
-  //   base_pet2.png, base2_pet2.png, base3_pet2.png, base4_pet2.png
-  // If missing, we fall back to pet1 art and apply a hue-rotate filter so pet2 is still visually distinct.
+  //   base_2.png, base_3.png, base_4.png, etc.
+  // If missing, we fall back to pet1 art and apply a hue-rotate filter so each pet is still visually distinct.
   function loadBaseSet(suffix) {
     return {
       stand: createImg(`base${suffix}.png`),
@@ -40,6 +41,13 @@
   const baseSets = [
     loadBaseSet(''),
     loadBaseSet('_2'),
+    loadBaseSet('_3'),
+  ];
+
+  const fallbackFilters = [
+    'none',
+    'hue-rotate(140deg) saturate(1.2)',
+    'hue-rotate(270deg) saturate(1.25)',
   ];
 
   // NOTE: Do NOT create a clothes button here.
@@ -51,16 +59,16 @@
     ctx.drawImage(img, x, y, w, h);
   }
 
-  // === Pets (2) ===
+  // === Pets ===
   function makePet(x, idx) {
     const p = {
       x,
       y: canvas.height - 170 - 170,
       w: 400,
       h: 450,
-      type: idx === 1 ? 'pet2' : 'pet1',
-      // If pet2 art is missing, we tint the fallback so it still looks like a different pet.
-      drawFilter: idx === 1 ? 'hue-rotate(140deg) saturate(1.2)' : 'none',
+      type: `pet${idx + 1}`,
+      // If character art is missing, tint the pet1 fallback so it still looks distinct.
+      drawFilter: fallbackFilters[idx] || 'none',
       dragging: false,
       oldx: 0,
       oldy: 0,
@@ -74,11 +82,10 @@
     return p;
   }
 
-  
-  const pets = [
-    makePet(canvas.width * 0.35, 0),
-    makePet(canvas.width * 0.65, 1),
-  ];
+  const pets = Array.from({ length: NUM_PETS }, (_, i) => {
+    const spacing = (i + 1) / (NUM_PETS + 1);
+    return makePet(canvas.width * spacing, i);
+  });
 
   // === Physics ===
   const gravity = 1.2;
@@ -117,29 +124,29 @@
   }
 
   function startDrag(e) {
-  // ✅ Drag allowed in EVERY mode except shower and garden
-  if (window._modeName === "shower") return;
-  if (window._gardenMode) return;
+    // ✅ Drag allowed in EVERY mode except shower and garden
+    if (window._modeName === "shower") return;
+    if (window._gardenMode) return;
 
-  const p = getPos(e);
+    const p = getPos(e);
 
-  // Pick top-most pet under pointer
-  for (let i = pets.length - 1; i >= 0; i--) {
-    const pet = pets[i];
-    if (
-      p.x > pet.x - pet.w / 2 &&
-      p.x < pet.x + pet.w / 2 &&
-      p.y > pet.y - pet.h / 2 &&
-      p.y < pet.y + pet.h / 2
-    ) {
-      pet.dragging = true;
-      activePet = pet;
-      if (typeof window.setActivePet === 'function') window.setActivePet(i);
-      e.preventDefault();
-      break;
+    // Pick top-most pet under pointer
+    for (let i = pets.length - 1; i >= 0; i--) {
+      const pet = pets[i];
+      if (
+        p.x > pet.x - pet.w / 2 &&
+        p.x < pet.x + pet.w / 2 &&
+        p.y > pet.y - pet.h / 2 &&
+        p.y < pet.y + pet.h / 2
+      ) {
+        pet.dragging = true;
+        activePet = pet;
+        if (typeof window.setActivePet === 'function') window.setActivePet(i);
+        e.preventDefault();
+        break;
+      }
     }
   }
-}
 
   function moveDrag(e) {
     if (!activePet || !activePet.dragging) return;
@@ -195,10 +202,9 @@
     canvas.height = window.innerHeight;
     groundY = canvas.height - groundHeight;
 
-    // keep pets in bounds and spaced
-    pets[0].x = Math.min(pets[0].x, canvas.width - pets[0].w / 2);
-    pets[1].x = Math.max(pets[1].x, pets[1].w / 2);
+    // keep pets in bounds
     pets.forEach(p => {
+      p.x = Math.max(p.w / 2, Math.min(p.x, canvas.width - p.w / 2));
       if (p.y + p.h / 2 > groundY) {
         p.y = groundY - p.h / 2;
         p.oldy = p.y;
@@ -285,14 +291,14 @@
     pets.forEach((pet, i) => {
       const state = getState(pet);
 
-      // choose base set; if pet2 asset missing, use pet1 and tint
+      // choose base set; if art is missing, use pet1 and tint
       let set = baseSets[i] || baseSets[0];
       let img = set[state];
       let useTintFallback = false;
       if (!img || img._failed) {
         set = baseSets[0];
         img = set[state];
-        useTintFallback = (i === 1);
+        useTintFallback = (i > 0);
       }
 
       ctx.save();

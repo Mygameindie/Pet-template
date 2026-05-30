@@ -4,6 +4,12 @@
 // drag it onto a pet, and the pet gets a small play/happiness boost.
 
 (() => {
+  // ======================================================================
+  // 🔧 DEBUG SWITCH — set to true to show the toy hit boxes, false to hide.
+  //    Just change this one line in the code. (No shortcut needed.)
+  // ======================================================================
+  const SHOW_HITBOX = false;
+
   const DEFAULT_TOYS = [
     { id: 'toy_1', src: 'toy_1.png', alt: 'Toy 1' },
   ];
@@ -121,27 +127,21 @@
   }
   window.toggleToyHitbox = toggleToyHitbox;
 
-  // The hit-box overlay is OFF by default (players never see it). Turn it on
-  // only when you want to debug/test, in any of these ways:
-  //   1. Press the "H" key while the game is open.
-  //   2. Run  toggleToyHitbox(true)  in the browser console.
-  //   3. Open the game with  ?debug  in the URL (e.g. index.html?debug).
+  // Show the hit boxes when the SHOW_HITBOX switch above is true.
+  // (You can also still toggle live with the "H" key or toggleToyHitbox() in
+  //  the console, but you don't need to — just flip SHOW_HITBOX in the code.)
+  function applyHitboxSwitch() {
+    if (SHOW_HITBOX) toggleToyHitbox(true);
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyHitboxSwitch);
+  } else {
+    applyHitboxSwitch();
+  }
+
   window.addEventListener('keydown', e => {
     if (e.key === 'h' || e.key === 'H') toggleToyHitbox();
   });
-
-  function maybeAutoDebug() {
-    try {
-      if (/(?:[?&#])debug\b/i.test(window.location.search + window.location.hash)) {
-        toggleToyHitbox(true);
-      }
-    } catch (_) {}
-  }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', maybeAutoDebug);
-  } else {
-    maybeAutoDebug();
-  }
 
   function checkToyCollision(toy) {
     const hit = petHitIndex(toy);

@@ -185,6 +185,24 @@
     });
   }
 
+  // Continuous boost: while a toy rests on a pet, keep raising happiness.
+  // The tick also re-checks overlaps so the state stays correct as the pets
+  // move/bounce (not just while the toy is being dragged).
+  function toyTick() {
+    const toys = document.querySelectorAll('.toy-item');
+    if (!toys.length) return;
+    toys.forEach(toy => checkToyCollision(toy));
+    [...colliding].forEach(key => {
+      const n = Number(key.split('-')[1]);
+      try {
+        if (window.PetStats && typeof window.PetStats.play === 'function') {
+          window.PetStats.play(n);
+        }
+      } catch (_) {}
+    });
+  }
+  setInterval(toyTick, 700);
+
   function makeToyDraggable(toy) {
     let sx = 0, sy = 0, ox = 0, oy = 0;
 

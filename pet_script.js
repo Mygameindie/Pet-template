@@ -32,6 +32,10 @@
       fall: createImg(`base${suffix}.png`),
       fly0: createImg(`base${suffix}.png`),
       fly1: createImg(`base${suffix}.png`),
+      // Toy3-style alternate base shown while a toy is touching the pet.
+      // Mirrors Toy3's base{num}_1.png convention; falls back to the normal
+      // base image if this art is missing.
+      toy: createImg(`base${suffix}_1.png`),
       _suffix: suffix,
     };
   }
@@ -68,6 +72,7 @@
       onGround: false,
       frame: 0,
       timer: 0,
+      _toyActive: false,
     };
     p.oldx = p.x;
     p.oldy = p.y;
@@ -295,6 +300,18 @@
         useTintFallback = (i === 1);
       }
 
+      // Toy3-style: while a toy is touching this pet, swap to the toy-touched
+      // base and hold it until the toy leaves. Falls back to the normal base
+      // image when the alternate art is missing (so behavior degrades cleanly).
+      if (pet._toyActive) {
+        let toyImg = set.toy;
+        if (!toyImg || toyImg._failed) {
+          toyImg = baseSets[0].toy;
+          if (toyImg && !toyImg._failed && i === 1) useTintFallback = true;
+        }
+        if (toyImg && !toyImg._failed) img = toyImg;
+      }
+
       ctx.save();
       ctx.filter = useTintFallback ? pet.drawFilter : 'none';
 
@@ -317,6 +334,14 @@
       ctx.restore();
     });
   }
+
+  // === Toy hook ===
+  // Analog of Toy3's setGenital(num, on): toggles a pet's base image to the
+  // toy-touched state while a toy overlaps it, and reverts when the toy leaves.
+  window.setPetToyState = function (index, on) {
+    const pet = pets[index];
+    if (pet) pet._toyActive = !!on;
+  };
 
   // === Pose broadcast ===
   window.getPetPose = function () {

@@ -31,37 +31,43 @@
     return src;
   }
 
-  function safePetBoost(index) {
+  // Analog of Toy3's setGenital(num, on): hold the pet's toy-touched image
+  // while a toy overlaps it, revert when the toy leaves.
+  function setPetToy(index, on) {
     try {
-      if (window.PetStats && typeof window.PetStats.play === 'function') {
-        window.PetStats.play(index);
+      if (typeof window.setPetToyState === 'function') {
+        window.setPetToyState(index, on);
       }
     } catch (_) {}
   }
 
+  // Rect-overlap test (like Toy3) between the toy and each pet's belly hotspot
+  // — a sub-region of the body, mirroring Toy3's belly/genital button.
   function petHitIndex(toy) {
     const pose = typeof window.getPetPose === 'function' ? window.getPetPose() : null;
     if (!pose || !Array.isArray(pose.pets)) return -1;
 
-    const r = toy.getBoundingClientRect();
-    const cx = r.left + r.width / 2;
-    const cy = r.top + r.height / 2;
     const canvasRect = pose.canvasRect || document.getElementById('canvas')?.getBoundingClientRect();
     if (!canvasRect) return -1;
 
-    const x = cx - canvasRect.left;
-    const y = cy - canvasRect.top;
+    const r = toy.getBoundingClientRect();
+    const tl = r.left - canvasRect.left;
+    const tr = r.right - canvasRect.left;
+    const tt = r.top - canvasRect.top;
+    const tb = r.bottom - canvasRect.top;
 
     for (let i = pose.pets.length - 1; i >= 0; i--) {
       const p = pose.pets[i];
-      if (
-        x >= p.x - p.w / 2 &&
-        x <= p.x + p.w / 2 &&
-        y >= p.y - p.h / 2 &&
-        y <= p.y + p.h / 2
-      ) {
-        return i;
-      }
+      // Belly hotspot: centered horizontally, around the lower-middle of the body.
+      const bw = p.w * 0.38;
+      const bh = p.h * 0.30;
+      const left = p.x - bw / 2;
+      const right = p.x + bw / 2;
+      const top = p.y + p.h * 0.10 - bh / 2;
+      const bottom = p.y + p.h * 0.10 + bh / 2;
+
+      const overlapping = !(tr < left || tl > right || tb < top || tt > bottom);
+      if (overlapping) return i;
     }
     return -1;
   }
@@ -70,27 +76,35 @@
     const hit = petHitIndex(toy);
     const tid = toy.dataset.toyId;
 
+    // Enter: toy now overlaps pet `hit` → activate toy-touched state.
     if (hit >= 0) {
       const key = `${tid}-${hit}`;
       if (!colliding.has(key)) {
         colliding.add(key);
-        safePetBoost(hit);
+        setPetToy(hit, true);
         toy.classList.add('toy-touched');
         setTimeout(() => toy.classList.remove('toy-touched'), 400);
       }
     }
 
+    // Exit: any pet this toy was touching but no longer is → revert.
     [...colliding].forEach(key => {
       if (!key.startsWith(`${tid}-`)) return;
       const n = Number(key.split('-')[1]);
-      if (n !== hit) colliding.delete(key);
+      if (n !== hit) {
+        colliding.delete(key);
+        setPetToy(n, false);
+      }
     });
   }
 
   function clearToyCollisions(toy) {
     const tid = toy.dataset.toyId;
     [...colliding].forEach(key => {
-      if (key.startsWith(`${tid}-`)) colliding.delete(key);
+      if (key.startsWith(`${tid}-`)) {
+        colliding.delete(key);
+        setPetToy(Number(key.split('-')[1]), false);
+      }
     });
   }
 

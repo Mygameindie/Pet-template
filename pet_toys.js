@@ -121,9 +121,27 @@
   }
   window.toggleToyHitbox = toggleToyHitbox;
 
+  // The hit-box overlay is OFF by default (players never see it). Turn it on
+  // only when you want to debug/test, in any of these ways:
+  //   1. Press the "H" key while the game is open.
+  //   2. Run  toggleToyHitbox(true)  in the browser console.
+  //   3. Open the game with  ?debug  in the URL (e.g. index.html?debug).
   window.addEventListener('keydown', e => {
     if (e.key === 'h' || e.key === 'H') toggleToyHitbox();
   });
+
+  function maybeAutoDebug() {
+    try {
+      if (/(?:[?&#])debug\b/i.test(window.location.search + window.location.hash)) {
+        toggleToyHitbox(true);
+      }
+    } catch (_) {}
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', maybeAutoDebug);
+  } else {
+    maybeAutoDebug();
+  }
 
   function checkToyCollision(toy) {
     const hit = petHitIndex(toy);

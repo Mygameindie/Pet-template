@@ -8,7 +8,7 @@
   // 🔧 DEBUG SWITCH — set to true to show the toy hit boxes, false to hide.
   //    Just change this one line in the code. (No shortcut needed.)
   // ======================================================================
-  const SHOW_HITBOX = false;
+  const SHOW_HITBOX = true;
 
   const DEFAULT_TOYS = [
     { id: 'toy_1', src: 'toy_1.png', alt: 'Toy 1' },
@@ -54,9 +54,9 @@
   // Centered horizontally, ~70% down the sprite box (0.20 below the pet's
   // vertical center), matching where the belly button sits on the base art.
   function bellyBox(p) {
-    const bw = p.w * 0.34;
-    const bh = p.h * 0.30;
-    const cy = p.y + p.h * 0.20;
+    const bw = p.w * 0.09;
+    const bh = p.h * 0.07;
+    const cy = p.y + p.h * 0.25;
     return {
       left: p.x - bw / 2,
       right: p.x + bw / 2,

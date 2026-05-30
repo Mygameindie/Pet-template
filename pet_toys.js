@@ -58,13 +58,16 @@
 
     for (let i = pose.pets.length - 1; i >= 0; i--) {
       const p = pose.pets[i];
-      // Belly hotspot: centered horizontally, around the lower-middle of the body.
-      const bw = p.w * 0.38;
+      // Belly hotspot: centered horizontally, over the lower-body / belly area.
+      // Centered ~70% down the sprite box (0.20 below the pet's vertical center),
+      // matching where the belly button sits on the base art.
+      const bw = p.w * 0.34;
       const bh = p.h * 0.30;
+      const cy = p.y + p.h * 0.20;
       const left = p.x - bw / 2;
       const right = p.x + bw / 2;
-      const top = p.y + p.h * 0.10 - bh / 2;
-      const bottom = p.y + p.h * 0.10 + bh / 2;
+      const top = cy - bh / 2;
+      const bottom = cy + bh / 2;
 
       const overlapping = !(tr < left || tl > right || tb < top || tt > bottom);
       if (overlapping) return i;

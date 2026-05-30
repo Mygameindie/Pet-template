@@ -153,6 +153,12 @@
       if (!colliding.has(key)) {
         colliding.add(key);
         setPetToy(hit, true);
+        // Playing with a toy also boosts the pet's happiness (once per touch).
+        try {
+          if (window.PetStats && typeof window.PetStats.play === 'function') {
+            window.PetStats.play(hit);
+          }
+        } catch (_) {}
         toy.classList.add('toy-touched');
         setTimeout(() => toy.classList.remove('toy-touched'), 400);
       }

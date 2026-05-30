@@ -8,7 +8,7 @@
   // 🔧 DEBUG SWITCH — set to true to show the toy hit boxes, false to hide.
   //    Just change this one line in the code. (No shortcut needed.)
   // ======================================================================
-  const SHOW_HITBOX = true;
+  const SHOW_HITBOX = false;
 
   const DEFAULT_TOYS = [
     { id: 'toy_1', src: 'toy_1.png', alt: 'Toy 1' },

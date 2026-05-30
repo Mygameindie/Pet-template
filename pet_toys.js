@@ -311,6 +311,28 @@
         toggleBtn.classList.remove('active');
       }
     }, true);
+
+    // The Toys button belongs to the main (Normal/Drag) screen only. Show it
+    // there and hide it — clearing the panel and any spawned toys — whenever
+    // another mode (Feed, Shower, Troll, etc.) is selected.
+    function setToyUIVisible(visible) {
+      toggleBtn.style.display = visible ? '' : 'none';
+      if (!visible) {
+        panel.style.display = 'none';
+        toggleBtn.classList.remove('active');
+        document.querySelectorAll('.toy-item').forEach(t => {
+          clearToyCollisions(t);
+          t.remove();
+        });
+      }
+    }
+
+    modeMenu.querySelectorAll('button').forEach(btn => {
+      if (btn === toggleBtn) return;
+      btn.addEventListener('click', () => {
+        setToyUIVisible(btn.id === 'normal-btn');
+      });
+    });
   }
 
   document.addEventListener('DOMContentLoaded', initToys);

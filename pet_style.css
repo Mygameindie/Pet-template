@@ -235,6 +235,16 @@ button[style*="Change Clothes"] {
   animation: hammerSwing 320ms ease-in-out 1;
 }
 
+/* Debug overlay for the toy belly hit box (toggle with the "H" key) */
+.toy-hitbox-debug {
+  position: fixed;
+  border: 2px dashed #ff2d55;
+  background: rgba(255,45,85,0.15);
+  border-radius: 6px;
+  pointer-events: none;
+  z-index: 9999;
+}
+
 /* ===== TOY3 TOY PANEL + DRAGGABLE TOYS ===== */
 #toy-panel,
 .toy-panel {
